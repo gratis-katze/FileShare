@@ -2,6 +2,9 @@
 
 A simple file transfer application that turns any laptop into personal cloud storage. Access your files locally or from anywhere on the internet!
 
+<img width="1512" height="982" alt="Screenshot 2025-08-25 at 20 18 19" src="https://github.com/user-attachments/assets/a0f841c8-3a2d-4c30-a50c-4ab4bda70936" />
+
+
 ## Features
 
 - Upload files and folders via web interface
