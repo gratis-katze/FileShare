@@ -179,7 +179,7 @@ app.delete('/delete/*', (req, res) => {
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '127.0.0.1', () => {
   console.log(`FileShare server running on port ${PORT}`);
   console.log(`Access from other devices at: http://[YOUR_IP]:${PORT}`);
 });
