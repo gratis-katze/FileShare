@@ -200,49 +200,87 @@ router.delete('/delete/private/*', requireAuth, (req, res) => {
   const userDir = getUserUploadDir(req.session.user.name);
   
   const fileMapping = loadFileMapping(req.session.user.name);
-  const obfuscatedName = fileMapping[requestedPath];
   
-  if (!obfuscatedName) {
-    return res.status(404).json({ error: 'File not found' });
+  // For directories, we need to find the actual directory path differently
+  // First, check if this is a top-level directory by looking for files that start with this path
+  const filesInPath = Object.keys(fileMapping).filter(key => 
+    key === requestedPath || key.startsWith(requestedPath + '/')
+  );
+  
+  if (filesInPath.length === 0) {
+    return res.status(404).json({ error: 'File or directory not found' });
   }
   
-  const actualFilePath = path.join(userDir, obfuscatedName);
+  // Check if it's a directory by seeing if we have files with this path as a prefix
+  const isDirectory = filesInPath.some(key => key.startsWith(requestedPath + '/'));
   
-  if (!fs.existsSync(actualFilePath)) {
-    return res.status(404).json({ error: 'File not found' });
-  }
-  
-  const stats = fs.statSync(actualFilePath);
-  
-  if (stats.isDirectory()) {
-    fs.rmdir(actualFilePath, { recursive: true }, (err) => {
-      if (err) {
-        return res.status(500).json({ error: 'Unable to delete directory' });
+  if (isDirectory) {
+    // It's a directory - we need to delete all files in it and clean up the directory
+    let deletedFiles = 0;
+    let errors = [];
+    
+    filesInPath.forEach(filePath => {
+      const obfuscatedName = fileMapping[filePath];
+      if (obfuscatedName) {
+        const actualFilePath = path.join(userDir, obfuscatedName);
+        try {
+          if (fs.existsSync(actualFilePath)) {
+            fs.unlinkSync(actualFilePath);
+            deletedFiles++;
+          }
+        } catch (error) {
+          errors.push(`Failed to delete ${filePath}: ${error.message}`);
+        }
       }
-      
-      // Clean up file mapping for all files in the deleted directory
-      const fileMapping = loadFileMapping(req.session.user.name);
-      const keysToDelete = Object.keys(fileMapping).filter(key => 
-        key === requestedPath || key.startsWith(requestedPath + '/')
-      );
-      
-      keysToDelete.forEach(key => {
-        delete fileMapping[key];
-      });
-      
-      saveFileMapping(req.session.user.name, fileMapping);
-      
-      res.json({ message: 'Directory deleted successfully' });
     });
+    
+    // Try to remove the empty directory
+    const directoryPath = path.join(userDir, requestedPath);
+    try {
+      if (fs.existsSync(directoryPath)) {
+        fs.rmdirSync(directoryPath, { recursive: true });
+      }
+    } catch (error) {
+      console.log('Could not remove directory structure:', error.message);
+    }
+    
+    // Clean up file mapping for all files in the deleted directory
+    const updatedFileMapping = loadFileMapping(req.session.user.name);
+    filesInPath.forEach(key => {
+      delete updatedFileMapping[key];
+    });
+    saveFileMapping(req.session.user.name, updatedFileMapping);
+    
+    if (errors.length > 0) {
+      return res.status(500).json({ 
+        error: `Deleted ${deletedFiles} files but encountered ${errors.length} errors`,
+        details: errors
+      });
+    }
+    
+    res.json({ message: `Directory deleted successfully (${deletedFiles} files removed)` });
   } else {
+    // It's a single file
+    const obfuscatedName = fileMapping[requestedPath];
+    
+    if (!obfuscatedName) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    const actualFilePath = path.join(userDir, obfuscatedName);
+    
+    if (!fs.existsSync(actualFilePath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
     fs.unlink(actualFilePath, (err) => {
       if (err) {
         return res.status(500).json({ error: 'Unable to delete file' });
       }
       
-      const fileMapping = loadFileMapping(req.session.user.name);
-      delete fileMapping[requestedPath];
-      saveFileMapping(req.session.user.name, fileMapping);
+      const updatedFileMapping = loadFileMapping(req.session.user.name);
+      delete updatedFileMapping[requestedPath];
+      saveFileMapping(req.session.user.name, updatedFileMapping);
       
       res.json({ message: 'File deleted successfully' });
     });
