@@ -40,7 +40,8 @@ function startTunnel() {
     
     const tunnel = spawn('ssh', [
         '-o', 'StrictHostKeyChecking=no',
-        '-R', '80:localhost:3000',
+        '-4',
+        '-R', '80:127.0.0.1:3000',
         'serveo.net'
     ], {
         stdio: ['inherit', 'pipe', 'pipe']
