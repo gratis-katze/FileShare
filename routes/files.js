@@ -274,7 +274,7 @@ router.get('/download/*', (req, res) => {
 
 // Folder download routes (ZIP)
 router.get('/download-folder/public/*', (req, res) => {
-  const requestedPath = req.params[0];
+  const requestedPath = decodeURIComponent(req.params[0]);
   const folderPath = path.join(publicDir, requestedPath);
   
   if (!fs.existsSync(folderPath) || !fs.statSync(folderPath).isDirectory()) {
@@ -285,7 +285,7 @@ router.get('/download-folder/public/*', (req, res) => {
 });
 
 router.get('/download-folder/private/*', requireAuth, (req, res) => {
-  const requestedPath = req.params[0];
+  const requestedPath = decodeURIComponent(req.params[0]);
   const userDir = getUserUploadDir(req.session.user.name);
   const username = req.session.user.name;
   
@@ -295,7 +295,7 @@ router.get('/download-folder/private/*', requireAuth, (req, res) => {
 
 // Legacy folder download endpoint
 router.get('/download-folder/*', (req, res) => {
-  const requestedPath = req.params[0];
+  const requestedPath = decodeURIComponent(req.params[0]);
   if (req.session.user) {
     res.redirect(`/download-folder/private/${requestedPath}`);
   } else {
