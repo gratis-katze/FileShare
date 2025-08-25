@@ -1,6 +1,7 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 // Get mode from command line argument
 const mode = process.argv[2];
@@ -62,10 +63,72 @@ if (mode === 'local') {
     console.log('💡 Press Ctrl+C to stop the server\n');
 } else if (mode === 'online') {
     console.log('✅ Starting tunnel...\n');
-    startOnlineTunnel();
+    checkAndGenerateSSHKey(() => {
+        startOnlineTunnel();
+    });
 } else if (mode === 'custom') {
     console.log(`✅ Starting tunnel for ${CUSTOM_DOMAIN}...\n`);
-    startCustomDomainTunnel();
+    checkAndGenerateSSHKey(() => {
+        startCustomDomainTunnel();
+    });
+}
+
+function checkAndGenerateSSHKey(callback) {
+    const sshDir = path.join(os.homedir(), '.ssh');
+    const privateKeyPath = path.join(sshDir, 'id_rsa');
+    const publicKeyPath = path.join(sshDir, 'id_rsa.pub');
+    
+    // Check if SSH directory exists
+    if (!fs.existsSync(sshDir)) {
+        console.log('🔑 Creating .ssh directory...');
+        fs.mkdirSync(sshDir, { mode: 0o700 });
+    }
+    
+    // Check if SSH keys exist
+    if (!fs.existsSync(privateKeyPath) || !fs.existsSync(publicKeyPath)) {
+        console.log('🔑 SSH keys not found. Generating new SSH key pair...');
+        console.log('   This is required for creating secure tunnels.\n');
+        
+        try {
+            // Generate SSH key using ssh-keygen
+            const keygenProcess = spawn('ssh-keygen', [
+                '-t', 'rsa',
+                '-b', '2048',
+                '-f', privateKeyPath,
+                '-N', '',  // No passphrase
+                '-C', 'FileShare-auto-generated'
+            ], {
+                stdio: 'inherit'
+            });
+            
+            keygenProcess.on('close', (code) => {
+                if (code === 0) {
+                    console.log('✅ SSH key pair generated successfully!');
+                    console.log(`   Private key: ${privateKeyPath}`);
+                    console.log(`   Public key: ${publicKeyPath}\n`);
+                    callback();
+                } else {
+                    console.error('❌ Failed to generate SSH key pair');
+                    console.error('   Please run: ssh-keygen -t rsa -b 2048');
+                    process.exit(1);
+                }
+            });
+            
+            keygenProcess.on('error', (error) => {
+                console.error('❌ ssh-keygen command not found or failed');
+                console.error('   Please install OpenSSH or run manually: ssh-keygen -t rsa -b 2048');
+                process.exit(1);
+            });
+            
+        } catch (error) {
+            console.error('❌ Error generating SSH keys:', error.message);
+            console.error('   Please run manually: ssh-keygen -t rsa -b 2048');
+            process.exit(1);
+        }
+    } else {
+        console.log('✅ SSH keys found - ready to create tunnel');
+        callback();
+    }
 }
 
 function startOnlineTunnel() {
