@@ -18,19 +18,10 @@ if (!fs.existsSync(uploadDir)) {
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const relativePath = req.body.relativePath || '';
-    const fileDir = path.join(uploadDir, path.dirname(relativePath));
-    
-    if (!fs.existsSync(fileDir)) {
-      fs.mkdirSync(fileDir, { recursive: true });
-    }
-    
-    cb(null, fileDir);
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    const relativePath = req.body.relativePath || '';
-    const filename = relativePath ? path.basename(relativePath) : file.originalname;
-    cb(null, filename);
+    cb(null, file.originalname);
   }
 });
 
@@ -86,11 +77,33 @@ app.post('/upload', upload.single('file'), (req, res) => {
     return res.status(400).json({ error: 'No file uploaded' });
   }
   
-  res.json({ 
-    message: 'File uploaded successfully', 
-    filename: req.file.filename,
-    size: req.file.size
-  });
+  const relativePath = req.body.relativePath;
+  
+  if (relativePath) {
+    // Move file to correct folder structure
+    const targetDir = path.join(uploadDir, path.dirname(relativePath));
+    const targetPath = path.join(uploadDir, relativePath);
+    
+    // Create directories if they don't exist
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+    
+    // Move file from temp location to target location
+    fs.renameSync(req.file.path, targetPath);
+    
+    res.json({ 
+      message: 'File uploaded successfully', 
+      filename: relativePath,
+      size: req.file.size
+    });
+  } else {
+    res.json({ 
+      message: 'File uploaded successfully', 
+      filename: req.file.filename,
+      size: req.file.size
+    });
+  }
 });
 
 app.get('/download/*', (req, res) => {
