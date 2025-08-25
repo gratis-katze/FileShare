@@ -18,10 +18,19 @@ if (!fs.existsSync(uploadDir)) {
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadDir);
+    const relativePath = req.body.relativePath || '';
+    const fileDir = path.join(uploadDir, path.dirname(relativePath));
+    
+    if (!fs.existsSync(fileDir)) {
+      fs.mkdirSync(fileDir, { recursive: true });
+    }
+    
+    cb(null, fileDir);
   },
   filename: (req, file, cb) => {
-    cb(null, file.originalname);
+    const relativePath = req.body.relativePath || '';
+    const filename = relativePath ? path.basename(relativePath) : file.originalname;
+    cb(null, filename);
   }
 });
 
@@ -31,24 +40,45 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.get('/files', (req, res) => {
-  fs.readdir(uploadDir, (err, files) => {
-    if (err) {
-      return res.status(500).json({ error: 'Unable to read files' });
-    }
+function getFilesRecursively(dir, basePath = '') {
+  const files = [];
+  const items = fs.readdirSync(dir);
+  
+  items.forEach(item => {
+    const itemPath = path.join(dir, item);
+    const relativePath = basePath ? path.join(basePath, item) : item;
+    const stats = fs.statSync(itemPath);
     
-    const fileList = files.map(file => {
-      const filePath = path.join(uploadDir, file);
-      const stats = fs.statSync(filePath);
-      return {
-        name: file,
+    if (stats.isDirectory()) {
+      files.push({
+        name: item,
+        path: relativePath,
+        type: 'directory',
+        size: 0,
+        modified: stats.mtime
+      });
+      files.push(...getFilesRecursively(itemPath, relativePath));
+    } else {
+      files.push({
+        name: item,
+        path: relativePath,
+        type: 'file',
         size: stats.size,
         modified: stats.mtime
-      };
-    });
-    
-    res.json(fileList);
+      });
+    }
   });
+  
+  return files;
+}
+
+app.get('/files', (req, res) => {
+  try {
+    const fileList = getFilesRecursively(uploadDir);
+    res.json(fileList);
+  } catch (err) {
+    res.status(500).json({ error: 'Unable to read files' });
+  }
 });
 
 app.post('/upload', upload.single('file'), (req, res) => {
@@ -63,9 +93,8 @@ app.post('/upload', upload.single('file'), (req, res) => {
   });
 });
 
-app.get('/download/:filename', (req, res) => {
-  const filename = req.params.filename;
-  const filePath = path.join(uploadDir, filename);
+app.get('/download/*', (req, res) => {
+  const filePath = path.join(uploadDir, req.params[0]);
   
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'File not found' });
@@ -74,20 +103,30 @@ app.get('/download/:filename', (req, res) => {
   res.download(filePath);
 });
 
-app.delete('/delete/:filename', (req, res) => {
-  const filename = req.params.filename;
-  const filePath = path.join(uploadDir, filename);
+app.delete('/delete/*', (req, res) => {
+  const filePath = path.join(uploadDir, req.params[0]);
   
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'File not found' });
   }
   
-  fs.unlink(filePath, (err) => {
-    if (err) {
-      return res.status(500).json({ error: 'Unable to delete file' });
-    }
-    res.json({ message: 'File deleted successfully' });
-  });
+  const stats = fs.statSync(filePath);
+  
+  if (stats.isDirectory()) {
+    fs.rmdir(filePath, { recursive: true }, (err) => {
+      if (err) {
+        return res.status(500).json({ error: 'Unable to delete directory' });
+      }
+      res.json({ message: 'Directory deleted successfully' });
+    });
+  } else {
+    fs.unlink(filePath, (err) => {
+      if (err) {
+        return res.status(500).json({ error: 'Unable to delete file' });
+      }
+      res.json({ message: 'File deleted successfully' });
+    });
+  }
 });
 
 app.listen(PORT, '0.0.0.0', () => {

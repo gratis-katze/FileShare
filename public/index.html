@@ -150,11 +150,15 @@
         <h1>FileShare - Cloud Storage</h1>
         
         <div class="upload-section">
-            <h3>Upload Files</h3>
-            <p>Click to select files or drag and drop</p>
+            <h3>Upload Files & Folders</h3>
+            <p>Click to select files/folders or drag and drop</p>
             <input type="file" id="fileInput" multiple>
+            <input type="file" id="folderInput" webkitdirectory directory multiple>
             <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
                 Choose Files
+            </button>
+            <button class="upload-btn" onclick="document.getElementById('folderInput').click()">
+                Choose Folder
             </button>
             <button class="upload-btn" onclick="uploadFiles()">
                 Upload Selected
@@ -176,6 +180,12 @@
         document.getElementById('fileInput').addEventListener('change', function(e) {
             selectedFiles = Array.from(e.target.files);
             showMessage(`${selectedFiles.length} file(s) selected`, 'success');
+        });
+
+        document.getElementById('folderInput').addEventListener('change', function(e) {
+            selectedFiles = Array.from(e.target.files);
+            const folderName = selectedFiles.length > 0 ? selectedFiles[0].webkitRelativePath.split('/')[0] : '';
+            showMessage(`Folder "${folderName}" with ${selectedFiles.length} file(s) selected`, 'success');
         });
 
         function showMessage(text, type) {
@@ -202,9 +212,15 @@
                 return;
             }
 
+            let uploadedCount = 0;
             for (let file of selectedFiles) {
                 const formData = new FormData();
                 formData.append('file', file);
+                
+                // Add relative path for folder structure
+                if (file.webkitRelativePath) {
+                    formData.append('relativePath', file.webkitRelativePath);
+                }
 
                 try {
                     const response = await fetch('/upload', {
@@ -213,17 +229,20 @@
                     });
 
                     if (response.ok) {
-                        showMessage(`${file.name} uploaded successfully`, 'success');
+                        uploadedCount++;
                     } else {
-                        showMessage(`Failed to upload ${file.name}`, 'error');
+                        showMessage(`Failed to upload ${file.webkitRelativePath || file.name}`, 'error');
                     }
                 } catch (error) {
-                    showMessage(`Error uploading ${file.name}: ${error.message}`, 'error');
+                    showMessage(`Error uploading ${file.webkitRelativePath || file.name}: ${error.message}`, 'error');
                 }
             }
 
+            showMessage(`${uploadedCount} of ${selectedFiles.length} files uploaded successfully`, 'success');
+            
             selectedFiles = [];
             document.getElementById('fileInput').value = '';
+            document.getElementById('folderInput').value = '';
             loadFiles();
         }
 
@@ -243,15 +262,20 @@
                 files.forEach(file => {
                     const fileCard = document.createElement('div');
                     fileCard.className = 'file-card';
+                    
+                    const isDirectory = file.type === 'directory';
+                    const displayPath = file.path || file.name;
+                    const icon = isDirectory ? '📁' : '📄';
+                    
                     fileCard.innerHTML = `
-                        <div class="file-name">${file.name}</div>
+                        <div class="file-name">${icon} ${displayPath}</div>
                         <div class="file-info">
-                            Size: ${formatFileSize(file.size)}<br>
+                            ${isDirectory ? 'Directory' : `Size: ${formatFileSize(file.size)}`}<br>
                             Modified: ${new Date(file.modified).toLocaleString()}
                         </div>
                         <div class="file-actions">
-                            <a href="/download/${encodeURIComponent(file.name)}" class="btn btn-download">Download</a>
-                            <button class="btn btn-delete" onclick="deleteFile('${file.name}')">Delete</button>
+                            ${!isDirectory ? `<a href="/download/${encodeURIComponent(file.path)}" class="btn btn-download">Download</a>` : ''}
+                            <button class="btn btn-delete" onclick="deleteFile('${file.path}')">Delete</button>
                         </div>
                     `;
                     fileGrid.appendChild(fileCard);
@@ -261,24 +285,24 @@
             }
         }
 
-        async function deleteFile(filename) {
-            if (!confirm(`Are you sure you want to delete ${filename}?`)) {
+        async function deleteFile(filePath) {
+            if (!confirm(`Are you sure you want to delete ${filePath}?`)) {
                 return;
             }
 
             try {
-                const response = await fetch(`/delete/${encodeURIComponent(filename)}`, {
+                const response = await fetch(`/delete/${encodeURIComponent(filePath)}`, {
                     method: 'DELETE'
                 });
 
                 if (response.ok) {
-                    showMessage(`${filename} deleted successfully`, 'success');
+                    showMessage(`${filePath} deleted successfully`, 'success');
                     loadFiles();
                 } else {
-                    showMessage(`Failed to delete ${filename}`, 'error');
+                    showMessage(`Failed to delete ${filePath}`, 'error');
                 }
             } catch (error) {
-                showMessage(`Error deleting ${filename}: ${error.message}`, 'error');
+                showMessage(`Error deleting ${filePath}: ${error.message}`, 'error');
             }
         }
 
@@ -297,14 +321,45 @@
             uploadSection.style.background = '#fafafa';
         });
 
-        uploadSection.addEventListener('drop', (e) => {
+        uploadSection.addEventListener('drop', async (e) => {
             e.preventDefault();
             uploadSection.style.borderColor = '#ddd';
             uploadSection.style.background = '#fafafa';
             
-            selectedFiles = Array.from(e.dataTransfer.files);
+            const items = e.dataTransfer.items;
+            selectedFiles = [];
+            
+            // Process dropped items (files and folders)
+            for (let item of items) {
+                if (item.kind === 'file') {
+                    const entry = item.webkitGetAsEntry();
+                    if (entry) {
+                        await processEntry(entry, '');
+                    }
+                }
+            }
+            
             showMessage(`${selectedFiles.length} file(s) selected`, 'success');
         });
+        
+        // Function to recursively process dropped folders
+        async function processEntry(entry, path = '') {
+            if (entry.isFile) {
+                entry.file(file => {
+                    file.webkitRelativePath = path + file.name;
+                    selectedFiles.push(file);
+                });
+            } else if (entry.isDirectory) {
+                const dirReader = entry.createReader();
+                const entries = await new Promise(resolve => {
+                    dirReader.readEntries(resolve);
+                });
+                
+                for (let childEntry of entries) {
+                    await processEntry(childEntry, path + entry.name + '/');
+                }
+            }
+        }
 
         // Load files when page loads
         loadFiles();
