@@ -1285,7 +1285,7 @@
                 }
 
                 try {
-                    const response = await fetch('/upload', {
+                    const response = await fetch('/files/upload', {
                         method: 'POST',
                         credentials: type === 'private' ? 'include' : 'same-origin',
                         body: formData
