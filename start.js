@@ -2,15 +2,34 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-// Configuration - UPDATE THESE VALUES
+// Get mode from command line argument
+const mode = process.argv[2];
+
+if (!mode || !['local', 'online', 'custom'].includes(mode)) {
+    console.log('🚀 FileShare Launcher\n');
+    console.log('Usage: node start.js <mode>');
+    console.log('');
+    console.log('Modes:');
+    console.log('  local   - Start local server only (default port 3000)');
+    console.log('  online  - Start with automatic serveo.net tunnel');
+    console.log('  custom  - Start with custom domain tunnel');
+    console.log('');
+    console.log('Examples:');
+    console.log('  node start.js local');
+    console.log('  node start.js online');
+    console.log('  node start.js custom');
+    process.exit(1);
+}
+
+// Configuration for custom domain mode
 const CUSTOM_DOMAIN = 'FelixShare'; // Replace with your actual domain
 const PORT = 3000;
 
-console.log('🚀 Starting FileShare with Custom Domain...\n');
+console.log(`🚀 Starting FileShare in ${mode.toUpperCase()} mode...\n`);
 
-// Validate configuration
-if (CUSTOM_DOMAIN === 'your-domain.com') {
-    console.log('❌ Please update CUSTOM_DOMAIN in start-custom-domain.js with your actual domain');
+// Validate custom domain configuration
+if (mode === 'custom' && CUSTOM_DOMAIN === 'your-domain.com') {
+    console.log('❌ Please update CUSTOM_DOMAIN in start.js with your actual domain');
     console.log('   Example: fileshare.example.com');
     process.exit(1);
 }
@@ -36,9 +55,54 @@ server.stderr.on('data', (data) => {
     console.error(`Server error: ${data}`);
 });
 
-// Start tunnel with custom domain
-console.log(`✅ Starting tunnel for ${CUSTOM_DOMAIN}...\n`);
-startCustomDomainTunnel();
+// Start appropriate tunnel based on mode
+if (mode === 'local') {
+    console.log(`✅ FileShare started in LOCAL mode!`);
+    console.log(`🌍 Access your FileShare at: http://localhost:${PORT}`);
+    console.log('💡 Press Ctrl+C to stop the server\n');
+} else if (mode === 'online') {
+    console.log('✅ Starting tunnel...\n');
+    startOnlineTunnel();
+} else if (mode === 'custom') {
+    console.log(`✅ Starting tunnel for ${CUSTOM_DOMAIN}...\n`);
+    startCustomDomainTunnel();
+}
+
+function startOnlineTunnel() {
+    console.log('🌐 Creating tunnel with serveo.net...');
+    
+    const tunnel = spawn('ssh', [
+        '-o', 'StrictHostKeyChecking=no',
+        '-4',
+        '-R', 'felixshare:80:127.0.0.1:3000',
+        'serveo.net'
+    ], {
+        stdio: ['inherit', 'pipe', 'pipe']
+    });
+
+    tunnel.stdout.on('data', (data) => {
+        const output = data.toString();
+        console.log('🔗', output);
+        
+        // Extract and highlight the public URL
+        const urlMatch = output.match(/https:\/\/felixshare\.serveo\.net/) || output.match(/https:\/\/[a-f0-9]+\.serveo\.net/);
+        if (urlMatch) {
+            console.log('\n🎉 SUCCESS! Your FileShare is now accessible online at:');
+            console.log(`🌍 ${urlMatch[0]}`);
+            console.log('\n📋 Share this URL with anyone to access your FileShare!');
+            console.log('💡 Press Ctrl+C to stop both server and tunnel\n');
+        }
+    });
+
+    tunnel.stderr.on('data', (data) => {
+        const output = data.toString();
+        if (!output.includes('Pseudo-terminal') && !output.includes('Warning: Permanently added')) {
+            console.error(`Tunnel: ${output}`);
+        }
+    });
+
+    setupTunnelHandlers(tunnel);
+}
 
 function startCustomDomainTunnel() {
     console.log(`🌐 Creating tunnel with custom domain: ${CUSTOM_DOMAIN}`);
@@ -80,6 +144,10 @@ function startCustomDomainTunnel() {
         }
     });
 
+    setupTunnelHandlers(tunnel);
+}
+
+function setupTunnelHandlers(tunnel) {
     tunnel.on('close', (code) => {
         console.log('\n🔴 Tunnel closed. Stopping server...');
         server.kill();
@@ -90,6 +158,15 @@ function startCustomDomainTunnel() {
     process.on('SIGINT', () => {
         console.log('\n🛑 Shutting down...');
         tunnel.kill();
+        server.kill();
+        process.exit(0);
+    });
+}
+
+// Handle Ctrl+C gracefully for local mode
+if (mode === 'local') {
+    process.on('SIGINT', () => {
+        console.log('\n🛑 Shutting down...');
         server.kill();
         process.exit(0);
     });

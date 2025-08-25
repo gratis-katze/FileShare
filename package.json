@@ -4,9 +4,8 @@
   "description": "FelixShare - Simple file transfer server for turning old laptops into cloud storage",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
-    "online": "node start-online.js"
+    "start": "node start.js local",
+    "online": "node start.js custom"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
