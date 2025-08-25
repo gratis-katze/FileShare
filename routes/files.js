@@ -219,6 +219,19 @@ router.delete('/delete/private/*', requireAuth, (req, res) => {
       if (err) {
         return res.status(500).json({ error: 'Unable to delete directory' });
       }
+      
+      // Clean up file mapping for all files in the deleted directory
+      const fileMapping = loadFileMapping(req.session.user.name);
+      const keysToDelete = Object.keys(fileMapping).filter(key => 
+        key === requestedPath || key.startsWith(requestedPath + '/')
+      );
+      
+      keysToDelete.forEach(key => {
+        delete fileMapping[key];
+      });
+      
+      saveFileMapping(req.session.user.name, fileMapping);
+      
       res.json({ message: 'Directory deleted successfully' });
     });
   } else {
