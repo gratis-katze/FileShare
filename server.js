@@ -11,11 +11,22 @@ const streamingRoutes = require('./routes/streaming');
 
 const app = express();
 
+// Configure server for large file uploads
 app.use(cors({
   credentials: true,
   origin: true
 }));
-app.use(express.json());
+
+// Increase payload limits for large files
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Set server timeout for large uploads (5 minutes)
+app.use((req, res, next) => {
+  req.setTimeout(300000); // 5 minutes
+  res.setTimeout(300000); // 5 minutes
+  next();
+});
 app.use(session({
   secret: 'your-secret-key-change-in-production',
   resave: false,

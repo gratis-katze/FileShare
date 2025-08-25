@@ -279,6 +279,11 @@
             background: #28a745;
             color: white;
         }
+        
+        .btn-download.folder-download {
+            background: #17a2b8;
+            color: white;
+        }
 
         .btn-delete {
             background: #dc3545;
@@ -363,7 +368,8 @@
             border-radius: 12px;
             text-align: center;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            min-width: 300px;
+            min-width: 400px;
+            max-width: 500px;
         }
 
         .loading-spinner {
@@ -390,6 +396,30 @@
         .loading-progress {
             font-size: 14px;
             color: #666;
+            margin-bottom: 15px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: #007bff;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .upload-stats {
+            font-size: 12px;
+            color: #888;
+            margin-top: 10px;
         }
 
         /* Upload Button Loading State */
@@ -826,7 +856,7 @@
                 <button class="upload-btn" onclick="document.getElementById('publicFolderInput').click()">
                     Choose Folder
                 </button>
-                <button class="upload-btn" onclick="uploadPublicFiles()">
+                <button class="upload-btn" id="publicUploadBtn" onclick="uploadPublicFiles()">
                     Upload Selected
                 </button>
             </div>
@@ -877,7 +907,7 @@
                 <button class="upload-btn" onclick="document.getElementById('privateFolderInput').click()">
                     Choose Folder
                 </button>
-                <button class="upload-btn" onclick="uploadPrivateFiles()">
+                <button class="upload-btn" id="privateUploadBtn" onclick="uploadPrivateFiles()">
                     Upload Selected
                 </button>
             </div>
@@ -938,7 +968,11 @@
             <div class="loading-content">
                 <div class="loading-spinner"></div>
                 <div class="loading-text" id="loadingText">Uploading files...</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
                 <div class="loading-progress" id="loadingProgress">0 of 0 files uploaded</div>
+                <div class="upload-stats" id="uploadStats">Preparing upload...</div>
             </div>
         </div>
 
@@ -1186,13 +1220,17 @@
             }, 300);
         }
         
-        function showLoading(text = 'Processing...', progress = '') {
+        function showLoading(text = 'Processing...', progress = '', stats = '', percentage = 0) {
             const loadingOverlay = document.getElementById('loadingOverlay');
             const loadingText = document.getElementById('loadingText');
             const loadingProgress = document.getElementById('loadingProgress');
+            const uploadStats = document.getElementById('uploadStats');
+            const progressFill = document.getElementById('progressFill');
             
             loadingText.textContent = text;
             loadingProgress.textContent = progress;
+            uploadStats.textContent = stats;
+            progressFill.style.width = percentage + '%';
             loadingOverlay.style.display = 'flex';
         }
         
@@ -1201,26 +1239,24 @@
             loadingOverlay.style.display = 'none';
         }
         
-        function setUploadButtonLoading(buttonText, isLoading) {
-            const uploadButtons = document.querySelectorAll('.upload-btn');
-            uploadButtons.forEach(button => {
-                if (button.textContent.includes(buttonText)) {
-                    if (isLoading) {
-                        button.classList.add('loading');
-                        button.disabled = true;
-                        button.setAttribute('data-original-text', button.textContent);
-                        button.textContent = 'Uploading...';
-                    } else {
-                        button.classList.remove('loading');
-                        button.disabled = false;
-                        const originalText = button.getAttribute('data-original-text');
-                        if (originalText) {
-                            button.textContent = originalText;
-                            button.removeAttribute('data-original-text');
-                        }
+        function setUploadButtonLoading(buttonId, isLoading) {
+            const button = document.getElementById(buttonId);
+            if (button) {
+                if (isLoading) {
+                    button.classList.add('loading');
+                    button.disabled = true;
+                    button.setAttribute('data-original-text', button.textContent);
+                    button.textContent = 'Uploading...';
+                } else {
+                    button.classList.remove('loading');
+                    button.disabled = false;
+                    const originalText = button.getAttribute('data-original-text');
+                    if (originalText) {
+                        button.textContent = originalText;
+                        button.removeAttribute('data-original-text');
                     }
                 }
-            });
+            }
         }
 
         function formatFileSize(bytes) {
@@ -1232,7 +1268,7 @@
         }
 
         async function uploadPublicFiles() {
-            await uploadFiles(selectedPublicFiles, 'public', () => {
+            await uploadFiles(selectedPublicFiles, 'public', 'publicUploadBtn', () => {
                 selectedPublicFiles = [];
                 document.getElementById('publicFileInput').value = '';
                 document.getElementById('publicFolderInput').value = '';
@@ -1245,7 +1281,7 @@
                 showMessage('Please login to upload private files', 'error');
                 return;
             }
-            await uploadFiles(selectedPrivateFiles, 'private', () => {
+            await uploadFiles(selectedPrivateFiles, 'private', 'privateUploadBtn', () => {
                 selectedPrivateFiles = [];
                 document.getElementById('privateFileInput').value = '';
                 document.getElementById('privateFolderInput').value = '';
@@ -1253,7 +1289,7 @@
             });
         }
 
-        async function uploadFiles(filesList, type, onComplete) {
+        async function uploadFiles(filesList, type, buttonId, onComplete) {
             if (filesList.length === 0) {
                 showMessage(`Please select files first`, 'error');
                 return;
@@ -1261,62 +1297,179 @@
             
             // Show loading overlay and set upload button to loading state
             showLoading(`Uploading files to ${type} space...`, `0 of ${filesList.length} files uploaded`);
-            setUploadButtonLoading('Upload Selected', true);
+            setUploadButtonLoading(buttonId, true);
             
-            let uploadedCount = 0;
-            let failedUploads = [];
-            
-            for (let i = 0; i < filesList.length; i++) {
-                const file = filesList[i];
-                const fileName = file.webkitRelativePath || file.name;
-                
-                // Update progress
-                showLoading(
-                    `Uploading: ${fileName}`,
-                    `${uploadedCount} of ${filesList.length} files uploaded`
-                );
-                
-                const formData = new FormData();
-                formData.append('file', file);
-                
-                // Add relative path for folder structure
-                if (file.webkitRelativePath) {
-                    formData.append('relativePath', file.webkitRelativePath);
-                }
-
-                try {
-                    const response = await fetch('/files/upload', {
-                        method: 'POST',
-                        credentials: type === 'private' ? 'include' : 'same-origin',
-                        body: formData
-                    });
-
-                    if (response.ok) {
-                        uploadedCount++;
-                    } else {
-                        failedUploads.push(fileName);
-                        console.error(`Failed to upload ${fileName}`);
-                    }
-                } catch (error) {
-                    failedUploads.push(fileName);
-                    console.error(`Error uploading ${fileName}:`, error.message);
-                }
-            }
+            const uploadResults = await uploadWithConcurrencyAndRetry(filesList, type);
             
             // Hide loading and reset button state
             hideLoading();
-            setUploadButtonLoading('Upload Selected', false);
+            setUploadButtonLoading(buttonId, false);
 
             // Show result notifications
-            if (uploadedCount > 0) {
-                showMessage(`${uploadedCount} of ${filesList.length} files uploaded successfully to ${type} space`, 'success');
+            if (uploadResults.successful > 0) {
+                showMessage(`${uploadResults.successful} of ${filesList.length} files uploaded successfully to ${type} space`, 'success');
             }
             
-            if (failedUploads.length > 0) {
-                showMessage(`Failed to upload ${failedUploads.length} file(s): ${failedUploads.slice(0, 3).join(', ')}${failedUploads.length > 3 ? '...' : ''}`, 'error');
+            if (uploadResults.failed.length > 0) {
+                showMessage(`Failed to upload ${uploadResults.failed.length} file(s): ${uploadResults.failed.slice(0, 3).join(', ')}${uploadResults.failed.length > 3 ? '...' : ''}`, 'error');
+                console.error('Upload failures:', uploadResults.failureDetails);
             }
             
             onComplete();
+        }
+
+        async function uploadWithConcurrencyAndRetry(filesList, type, maxConcurrent = 3, maxRetries = 3) {
+            let completedCount = 0;
+            let successfulUploads = 0;
+            let failedUploads = [];
+            let failureDetails = {};
+            const startTime = Date.now();
+            let totalBytes = 0;
+            let uploadedBytes = 0;
+            
+            // Calculate total file size
+            filesList.forEach(file => {
+                totalBytes += file.size;
+            });
+            
+            // Create upload queue
+            const uploadQueue = filesList.map((file, index) => ({
+                file,
+                fileName: file.webkitRelativePath || file.name,
+                index,
+                attempts: 0
+            }));
+            
+            function updateProgress() {
+                const percentage = Math.round((completedCount / filesList.length) * 100);
+                const elapsed = Date.now() - startTime;
+                const rate = uploadedBytes / (elapsed / 1000); // bytes per second
+                const remaining = (totalBytes - uploadedBytes) / rate;
+                
+                let statsText = `Speed: ${formatFileSize(rate)}/s`;
+                if (remaining > 0 && isFinite(remaining)) {
+                    statsText += ` • ETA: ${formatTime(remaining)}`;
+                }
+                
+                showLoading(
+                    completedCount < filesList.length ? `Uploading files to ${type} space...` : 'Finalizing upload...',
+                    `${completedCount} of ${filesList.length} files completed`,
+                    statsText,
+                    percentage
+                );
+            }
+            
+            // Process uploads with concurrency control
+            const activeUploads = new Set();
+            
+            async function processUpload(uploadItem) {
+                const { file, fileName, index } = uploadItem;
+                
+                try {
+                    const success = await uploadSingleFileWithRetry(file, fileName, type, maxRetries);
+                    
+                    if (success) {
+                        successfulUploads++;
+                        uploadedBytes += file.size;
+                    } else {
+                        failedUploads.push(fileName);
+                        failureDetails[fileName] = 'Upload failed after retries';
+                    }
+                    
+                } catch (error) {
+                    failedUploads.push(fileName);
+                    failureDetails[fileName] = error.message;
+                    console.error(`Upload error for ${fileName}:`, error);
+                } finally {
+                    completedCount++;
+                    activeUploads.delete(uploadItem);
+                    updateProgress();
+                }
+            }
+            
+            // Start initial progress display
+            updateProgress();
+            
+            // Process uploads with concurrency limit
+            for (const uploadItem of uploadQueue) {
+                // Wait if we've reached the concurrency limit
+                while (activeUploads.size >= maxConcurrent) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                activeUploads.add(uploadItem);
+                processUpload(uploadItem);
+            }
+            
+            // Wait for all uploads to complete
+            while (activeUploads.size > 0) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            return {
+                successful: successfulUploads,
+                failed: failedUploads,
+                failureDetails: failureDetails
+            };
+        }
+
+        function formatTime(seconds) {
+            if (seconds < 60) {
+                return Math.round(seconds) + 's';
+            } else if (seconds < 3600) {
+                return Math.round(seconds / 60) + 'm';
+            } else {
+                return Math.round(seconds / 3600) + 'h';
+            }
+        }
+
+        async function uploadSingleFileWithRetry(file, fileName, type, maxRetries) {
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    // Add relative path for folder structure
+                    if (file.webkitRelativePath) {
+                        formData.append('relativePath', file.webkitRelativePath);
+                    }
+                    
+                    // Add upload space information
+                    formData.append('uploadSpace', type);
+                    
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+                    
+                    const response = await fetch('/files/upload', {
+                        method: 'POST',
+                        credentials: 'include',
+                        body: formData,
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    if (response.ok) {
+                        return true;
+                    } else {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(`HTTP ${response.status}: ${errorData.error || 'Upload failed'}`);
+                    }
+                    
+                } catch (error) {
+                    console.warn(`Upload attempt ${attempt} failed for ${fileName}:`, error.message);
+                    
+                    if (attempt === maxRetries) {
+                        throw error;
+                    }
+                    
+                    // Exponential backoff: wait 1s, 2s, 4s, etc.
+                    const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+            
+            return false;
         }
 
         function isVideoFile(filename) {
@@ -1348,6 +1501,7 @@
                         <div class="folder-toggle">▶</div>
                     </div>
                     <div class="file-actions">
+                        <a href="/download-folder/${space}/${encodeURIComponent(file.path)}" class="btn btn-download folder-download">📁 Download Folder</a>
                         <button class="btn btn-delete" onclick="deleteFile('${file.path}', '${space}')">Delete</button>
                     </div>
                     <div class="folder-children">

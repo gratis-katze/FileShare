@@ -6,7 +6,7 @@ const os = require('os');
 // Get mode from command line argument
 const mode = process.argv[2];
 
-if (!mode || !['local', 'online', 'custom'].includes(mode)) {
+if (!mode || !['local', 'online', 'custom', 'ngrok'].includes(mode)) {
     console.log('🚀 FileShare Launcher\n');
     console.log('Usage: node start.js <mode>');
     console.log('');
@@ -14,11 +14,13 @@ if (!mode || !['local', 'online', 'custom'].includes(mode)) {
     console.log('  local   - Start local server only (default port 3000)');
     console.log('  online  - Start with automatic serveo.net tunnel');
     console.log('  custom  - Start with custom domain tunnel');
+    console.log('  ngrok   - Start with ngrok tunnel');
     console.log('');
     console.log('Examples:');
     console.log('  node start.js local');
     console.log('  node start.js online');
     console.log('  node start.js custom');
+    console.log('  node start.js ngrok');
     process.exit(1);
 }
 
@@ -71,6 +73,9 @@ if (mode === 'local') {
     checkAndGenerateSSHKey(() => {
         startCustomDomainTunnel();
     });
+} else if (mode === 'ngrok') {
+    console.log('✅ Starting ngrok tunnel...\n');
+    startNgrokTunnel();
 }
 
 function checkAndGenerateSSHKey(callback) {
@@ -208,6 +213,61 @@ function startCustomDomainTunnel() {
     });
 
     setupTunnelHandlers(tunnel);
+}
+
+function startNgrokTunnel() {
+    console.log('🌐 Creating ngrok tunnel...');
+    
+    const tunnel = spawn('ngrok', ['http', PORT.toString()], {
+        stdio: ['inherit', 'pipe', 'pipe']
+    });
+
+    tunnel.stdout.on('data', (data) => {
+        const output = data.toString();
+        console.log('🔗', output);
+    });
+
+    tunnel.stderr.on('data', (data) => {
+        const output = data.toString();
+        console.error(`Ngrok: ${output}`);
+    });
+
+    // Check ngrok API for the public URL
+    setTimeout(() => {
+        checkNgrokStatus();
+    }, 3000);
+
+    setupTunnelHandlers(tunnel);
+}
+
+function checkNgrokStatus() {
+    const http = require('http');
+    
+    const req = http.get('http://localhost:4040/api/tunnels', (res) => {
+        let data = '';
+        res.on('data', (chunk) => {
+            data += chunk;
+        });
+        res.on('end', () => {
+            try {
+                const tunnels = JSON.parse(data);
+                if (tunnels.tunnels && tunnels.tunnels.length > 0) {
+                    const publicUrl = tunnels.tunnels[0].public_url;
+                    console.log('\n🎉 SUCCESS! Your FileShare is now accessible online at:');
+                    console.log(`🌍 ${publicUrl}`);
+                    console.log('\n📋 Share this URL with anyone to access your FileShare!');
+                    console.log('💡 Press Ctrl+C to stop both server and tunnel');
+                    console.log(`📊 Ngrok Web Interface: http://localhost:4040\n`);
+                }
+            } catch (error) {
+                console.log('⏳ Ngrok tunnel starting up...');
+                setTimeout(() => checkNgrokStatus(), 2000);
+            }
+        });
+    }).on('error', (error) => {
+        console.log('⏳ Waiting for ngrok to start...');
+        setTimeout(() => checkNgrokStatus(), 2000);
+    });
 }
 
 function setupTunnelHandlers(tunnel) {

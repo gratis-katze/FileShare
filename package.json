@@ -5,9 +5,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node start.js local",
-    "online": "node start.js custom"
+    "serveo": "node start.js online",
+    "ngrok": "node start.js ngrok"
   },
   "dependencies": {
+    "archiver": "^7.0.1",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "express": "^4.18.2",
