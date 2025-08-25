@@ -17,23 +17,17 @@ const server = spawn('node', ['server.js'], {
     stdio: ['inherit', 'pipe', 'pipe']
 });
 
-let serverReady = false;
-
 server.stdout.on('data', (data) => {
-    const output = data.toString();
-    console.log(output);
-    
-    // Check if server is ready
-    if (output.includes('FileShare server running on port 3000') && !serverReady) {
-        serverReady = true;
-        console.log('✅ Server is ready! Starting tunnel...\n');
-        startTunnel();
-    }
+    console.log(data.toString());
 });
 
 server.stderr.on('data', (data) => {
     console.error(`Server error: ${data}`);
 });
+
+// Start tunnel immediately
+console.log('✅ Starting tunnel...\n');
+startTunnel();
 
 function startTunnel() {
     console.log('🌐 Creating tunnel with serveo.net...');
@@ -41,7 +35,7 @@ function startTunnel() {
     const tunnel = spawn('ssh', [
         '-o', 'StrictHostKeyChecking=no',
         '-4',
-        '-R', '80:127.0.0.1:3000',
+        '-R', 'felixshare:80:127.0.0.1:3000',
         'serveo.net'
     ], {
         stdio: ['inherit', 'pipe', 'pipe']
@@ -52,7 +46,7 @@ function startTunnel() {
         console.log('🔗', output);
         
         // Extract and highlight the public URL
-        const urlMatch = output.match(/https:\/\/[a-f0-9]+\.serveo\.net/);
+        const urlMatch = output.match(/https:\/\/felixshare\.serveo\.net/) || output.match(/https:\/\/[a-f0-9]+\.serveo\.net/);
         if (urlMatch) {
             console.log('\n🎉 SUCCESS! Your FileShare is now accessible online at:');
             console.log(`🌍 ${urlMatch[0]}`);

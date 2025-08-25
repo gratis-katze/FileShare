@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FileShare - Cloud Storage</title>
+    <title>FelixShare - Cloud Storage</title>
     <style>
         * {
             margin: 0;
@@ -12,24 +12,24 @@
         }
 
         body {
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             padding: 20px;
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
         h1 {
             text-align: center;
-            color: #333;
-            margin-bottom: 30px;
+            color: white;
+            margin-bottom: 40px;
+            font-size: 2.5em;
+            font-weight: 300;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
         }
 
         .upload-section {
@@ -166,81 +166,889 @@
             opacity: 0.8;
         }
 
-        .message {
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 4px;
+
+        /* Popup Notification Styles */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 2000;
+            min-width: 300px;
+            max-width: 400px;
+            transform: translateX(100%);
+            transition: transform 0.3s ease-in-out;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+
+        .notification.error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+
+        .notification-icon {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .notification-close {
+            margin-left: auto;
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: inherit;
+            opacity: 0.7;
+        }
+
+        .notification-close:hover {
+            opacity: 1;
+        }
+
+        /* Loading Indicator Styles */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+        }
+
+        .loading-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            min-width: 300px;
+        }
+
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .loading-progress {
+            font-size: 14px;
+            color: #666;
+        }
+
+        /* Upload Button Loading State */
+        .upload-btn.loading {
+            opacity: 0.7;
+            cursor: not-allowed;
+            position: relative;
+        }
+
+        .upload-btn.loading::after {
+            content: "";
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            margin: auto;
+            border: 2px solid transparent;
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .auth-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            max-width: 400px;
+            margin: 0 auto 30px;
+        }
+
+        .auth-form {
             display: none;
         }
 
-        .message.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+        .auth-form.active {
+            display: block;
         }
 
-        .message.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .auth-btn {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .auth-btn:hover {
+            background: #0056b3;
+        }
+
+        .auth-toggle {
+            text-align: center;
+            margin-top: 15px;
+            color: #666;
+        }
+
+        .auth-toggle a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        .auth-toggle a:hover {
+            text-decoration: underline;
+        }
+
+        .user-info {
+            background: #e9f7ef;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .logout-btn:hover {
+            background: #c82333;
+        }
+
+        .main-content {
+            display: block;
+        }
+
+        .section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-subtitle {
+            color: #666;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .login-panel {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .login-panel h3 {
+            margin: 0 0 15px 0;
+            font-size: 20px;
+        }
+
+        .login-panel p {
+            margin: 0 0 20px 0;
+            opacity: 0.9;
+        }
+
+        .btn-primary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .btn-primary:hover {
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.5);
+            transform: translateY(-2px);
+        }
+
+        .user-panel {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .private-section {
+            opacity: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.4s ease;
+        }
+
+        .private-section.visible {
+            opacity: 1;
+            max-height: 2000px;
+        }
+
+        .video-player {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 10px 0;
+            background: #000;
+        }
+
+        .video-card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .video-card .file-name {
+            font-weight: bold;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+
+        .video-card .file-info {
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        .video-card .file-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .image-player {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .image-player:hover {
+            transform: scale(1.02);
+        }
+
+        .image-card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .image-card .file-name {
+            font-weight: bold;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+
+        .image-card .file-info {
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        .image-card .file-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        /* Lightbox styles for full-size image viewing */
+        .lightbox {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+        }
+
+        .lightbox-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 95%;
+            max-height: 95%;
+            border-radius: 8px;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 35px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 10000;
+        }
+
+        .lightbox-close:hover {
+            opacity: 0.7;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>FileShare - Cloud Storage</h1>
+        <h1>🚀 FelixShare</h1>
         
-        <div class="upload-section">
-            <h3>Upload Files & Folders</h3>
-            <p>Click to select files/folders or drag and drop</p>
-            <input type="file" id="fileInput" multiple>
-            <input type="file" id="folderInput" webkitdirectory directory multiple>
-            <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
-                Choose Files
-            </button>
-            <button class="upload-btn" onclick="document.getElementById('folderInput').click()">
-                Choose Folder
-            </button>
-            <button class="upload-btn" onclick="uploadFiles()">
-                Upload Selected
-            </button>
+        <!-- Public File Space (Always Visible) -->
+        <div class="section" id="publicSection">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">
+                        🌍 Public File Space
+                    </h2>
+                    <p class="section-subtitle">Share files with everyone - no account needed</p>
+                </div>
+            </div>
+            
+            <div class="upload-section">
+                <h3>📤 Upload to Public Space</h3>
+                <p>Files uploaded here are accessible to everyone</p>
+                <input type="file" id="publicFileInput" multiple>
+                <input type="file" id="publicFolderInput" webkitdirectory directory multiple>
+                <button class="upload-btn" onclick="document.getElementById('publicFileInput').click()">
+                    Choose Files
+                </button>
+                <button class="upload-btn" onclick="document.getElementById('publicFolderInput').click()">
+                    Choose Folder
+                </button>
+                <button class="upload-btn" onclick="uploadPublicFiles()">
+                    Upload Selected
+                </button>
+            </div>
+
+            <div class="files-section">
+                <h3>📂 Public Files</h3>
+                <div class="file-grid" id="publicFileGrid">
+                </div>
+            </div>
         </div>
 
-        <div class="message" id="message"></div>
-
-        <div class="files-section">
-            <h3>Stored Files</h3>
-            <div class="file-grid" id="fileGrid">
+        <!-- Login Panel or User Panel -->
+        <div id="authPanel">
+            <div class="login-panel" id="loginPanel">
+                <h3>🔐 Want Private File Storage?</h3>
+                <p>Create an account to get your own private, encrypted file space</p>
+                <button class="btn-primary" onclick="openModal('loginModal')">Login</button>
+                <button class="btn-primary" onclick="openModal('signupModal')">Sign Up</button>
             </div>
+            
+            <div class="user-panel" id="userPanel" style="display: none;">
+                <div>
+                    <span>🔒 Welcome back, <strong id="username"></strong>!</span>
+                </div>
+                <button class="btn-primary" onclick="handleLogout()">Logout</button>
+            </div>
+        </div>
+
+        <!-- Private File Space (Visible when logged in) -->
+        <div class="section private-section" id="privateSection">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">
+                        🔒 Your Private File Space
+                    </h2>
+                    <p class="section-subtitle">Your files are encrypted and private</p>
+                </div>
+            </div>
+            
+            <div class="upload-section">
+                <h3>📤 Upload to Private Space</h3>
+                <p>Files uploaded here are encrypted and only visible to you</p>
+                <input type="file" id="privateFileInput" multiple>
+                <input type="file" id="privateFolderInput" webkitdirectory directory multiple>
+                <button class="upload-btn" onclick="document.getElementById('privateFileInput').click()">
+                    Choose Files
+                </button>
+                <button class="upload-btn" onclick="document.getElementById('privateFolderInput').click()">
+                    Choose Folder
+                </button>
+                <button class="upload-btn" onclick="uploadPrivateFiles()">
+                    Upload Selected
+                </button>
+            </div>
+
+            <div class="files-section">
+                <h3>📂 Your Private Files</h3>
+                <div class="file-grid" id="privateFileGrid">
+                </div>
+            </div>
+        </div>
+
+        <!-- Login Modal -->
+        <div class="modal" id="loginModal">
+            <div class="modal-content">
+                <button class="close-btn" onclick="closeModal('loginModal')">&times;</button>
+                <h3>Login</h3>
+                <form onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label for="loginName">Username:</label>
+                        <input type="text" id="loginName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Password:</label>
+                        <input type="password" id="loginPassword" required>
+                    </div>
+                    <button type="submit" class="auth-btn">Login</button>
+                </form>
+                <div class="auth-toggle">
+                    Don't have an account? <a href="#" onclick="switchModal('loginModal', 'signupModal')">Sign up</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Signup Modal -->
+        <div class="modal" id="signupModal">
+            <div class="modal-content">
+                <button class="close-btn" onclick="closeModal('signupModal')">&times;</button>
+                <h3>Create Account</h3>
+                <form onsubmit="handleSignup(event)">
+                    <div class="form-group">
+                        <label for="signupName">Username:</label>
+                        <input type="text" id="signupName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signupPassword">Password:</label>
+                        <input type="password" id="signupPassword" required>
+                    </div>
+                    <button type="submit" class="auth-btn">Create Account</button>
+                </form>
+                <div class="auth-toggle">
+                    Already have an account? <a href="#" onclick="switchModal('signupModal', 'loginModal')">Login</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <div class="loading-text" id="loadingText">Uploading files...</div>
+                <div class="loading-progress" id="loadingProgress">0 of 0 files uploaded</div>
+            </div>
+        </div>
+
+        <!-- Lightbox for image viewing -->
+        <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+            <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
+            <img class="lightbox-content" id="lightbox-image" onclick="event.stopPropagation()">
         </div>
     </div>
 
     <script>
-        let selectedFiles = [];
+        let selectedPublicFiles = [];
+        let selectedPrivateFiles = [];
+        let currentUser = null;
 
-        document.getElementById('fileInput').addEventListener('change', function(e) {
-            selectedFiles = Array.from(e.target.files);
-            showMessage(`${selectedFiles.length} file(s) selected`, 'success');
+        // Modal functions
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'block';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+            clearForms();
+        }
+
+        function switchModal(currentModalId, targetModalId) {
+            closeModal(currentModalId);
+            openModal(targetModalId);
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        }
+
+        // UI Update functions
+        function updateAuthUI() {
+            const loginPanel = document.getElementById('loginPanel');
+            const userPanel = document.getElementById('userPanel');
+            const privateSection = document.getElementById('privateSection');
+            const username = document.getElementById('username');
+            
+            if (currentUser) {
+                loginPanel.style.display = 'none';
+                userPanel.style.display = 'flex';
+                username.textContent = currentUser.name;
+                privateSection.classList.add('visible');
+            } else {
+                loginPanel.style.display = 'block';
+                userPanel.style.display = 'none';
+                privateSection.classList.remove('visible');
+            }
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('loginName').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const response = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ name, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage('Login successful!', 'success');
+                    currentUser = data.user;
+                    closeModal('loginModal');
+                    updateAuthUI();
+                    loadPrivateFiles();
+                } else {
+                    showMessage(data.error || 'Login failed', 'error');
+                }
+            } catch (error) {
+                showMessage('Login error: ' + error.message, 'error');
+            }
+        }
+
+        async function handleSignup(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('signupName').value;
+            const password = document.getElementById('signupPassword').value;
+
+            try {
+                const response = await fetch('/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ name, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage('Account created successfully!', 'success');
+                    currentUser = data.user;
+                    closeModal('signupModal');
+                    updateAuthUI();
+                    loadPrivateFiles();
+                } else {
+                    showMessage(data.error || 'Signup failed', 'error');
+                }
+            } catch (error) {
+                showMessage('Signup error: ' + error.message, 'error');
+            }
+        }
+
+        async function handleLogout() {
+            try {
+                const response = await fetch('/auth/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    currentUser = null;
+                    updateAuthUI();
+                    clearPrivateFiles();
+                    showMessage('Logged out successfully', 'success');
+                }
+            } catch (error) {
+                showMessage('Logout error: ' + error.message, 'error');
+            }
+        }
+
+        function clearPrivateFiles() {
+            const privateFileGrid = document.getElementById('privateFileGrid');
+            privateFileGrid.innerHTML = '';
+        }
+
+        function clearForms() {
+            const forms = ['loginName', 'loginPassword', 'signupName', 'signupPassword'];
+            forms.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) element.value = '';
+            });
+        }
+
+        async function checkAuthStatus() {
+            try {
+                const response = await fetch('/auth/status', {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+
+                if (data.authenticated) {
+                    currentUser = data.user;
+                    updateAuthUI();
+                    loadPublicFiles();
+                    loadPrivateFiles();
+                } else {
+                    updateAuthUI();
+                    loadPublicFiles();
+                }
+            } catch (error) {
+                updateAuthUI();
+                loadPublicFiles();
+            }
+        }
+
+        // File input event listeners
+        document.getElementById('publicFileInput').addEventListener('change', function(e) {
+            selectedPublicFiles = Array.from(e.target.files);
+            showMessage(`${selectedPublicFiles.length} file(s) selected for public upload`, 'success');
         });
 
-        document.getElementById('folderInput').addEventListener('change', function(e) {
-            selectedFiles = Array.from(e.target.files);
-            const folderName = selectedFiles.length > 0 ? selectedFiles[0].webkitRelativePath.split('/')[0] : '';
-            showMessage(`Folder "${folderName}" with ${selectedFiles.length} file(s) selected`, 'success');
+        document.getElementById('publicFolderInput').addEventListener('change', function(e) {
+            selectedPublicFiles = Array.from(e.target.files);
+            const folderName = selectedPublicFiles.length > 0 ? selectedPublicFiles[0].webkitRelativePath.split('/')[0] : '';
+            showMessage(`Folder "${folderName}" with ${selectedPublicFiles.length} file(s) selected for public upload`, 'success');
+        });
+
+        document.getElementById('privateFileInput').addEventListener('change', function(e) {
+            selectedPrivateFiles = Array.from(e.target.files);
+            showMessage(`${selectedPrivateFiles.length} file(s) selected for private upload`, 'success');
+        });
+
+        document.getElementById('privateFolderInput').addEventListener('change', function(e) {
+            selectedPrivateFiles = Array.from(e.target.files);
+            const folderName = selectedPrivateFiles.length > 0 ? selectedPrivateFiles[0].webkitRelativePath.split('/')[0] : '';
+            showMessage(`Folder "${folderName}" with ${selectedPrivateFiles.length} file(s) selected for private upload`, 'success');
         });
 
         function showMessage(text, type) {
-            const messageEl = document.getElementById('message');
-            messageEl.textContent = text;
-            messageEl.className = `message ${type}`;
-            messageEl.style.display = 'block';
+            showNotification(text, type);
+        }
+        
+        function showNotification(text, type) {
+            // Remove any existing notifications
+            const existingNotifications = document.querySelectorAll('.notification');
+            existingNotifications.forEach(notification => notification.remove());
             
-            // Only auto-hide error messages, keep success messages visible
-            if (type === 'error') {
-                setTimeout(() => {
-                    messageEl.style.display = 'none';
-                }, 5000);
-            }
+            // Create new notification
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            
+            const icon = type === 'success' ? '✓' : '✗';
+            
+            notification.innerHTML = `
+                <span class="notification-icon">${icon}</span>
+                <span class="notification-text">${text}</span>
+                <button class="notification-close" onclick="closeNotification(this)">&times;</button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Show notification with animation
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 100);
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                hideNotification(notification);
+            }, 5000);
+        }
+        
+        function closeNotification(button) {
+            const notification = button.closest('.notification');
+            hideNotification(notification);
+        }
+        
+        function hideNotification(notification) {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }
+        
+        function showLoading(text = 'Processing...', progress = '') {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const loadingText = document.getElementById('loadingText');
+            const loadingProgress = document.getElementById('loadingProgress');
+            
+            loadingText.textContent = text;
+            loadingProgress.textContent = progress;
+            loadingOverlay.style.display = 'flex';
+        }
+        
+        function hideLoading() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            loadingOverlay.style.display = 'none';
+        }
+        
+        function setUploadButtonLoading(buttonText, isLoading) {
+            const uploadButtons = document.querySelectorAll('.upload-btn');
+            uploadButtons.forEach(button => {
+                if (button.textContent.includes(buttonText)) {
+                    if (isLoading) {
+                        button.classList.add('loading');
+                        button.disabled = true;
+                        button.setAttribute('data-original-text', button.textContent);
+                        button.textContent = 'Uploading...';
+                    } else {
+                        button.classList.remove('loading');
+                        button.disabled = false;
+                        const originalText = button.getAttribute('data-original-text');
+                        if (originalText) {
+                            button.textContent = originalText;
+                            button.removeAttribute('data-original-text');
+                        }
+                    }
+                }
+            });
         }
 
         function formatFileSize(bytes) {
@@ -251,14 +1059,51 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
-        async function uploadFiles() {
-            if (selectedFiles.length === 0) {
-                showMessage('Please select files first', 'error');
+        async function uploadPublicFiles() {
+            await uploadFiles(selectedPublicFiles, 'public', () => {
+                selectedPublicFiles = [];
+                document.getElementById('publicFileInput').value = '';
+                document.getElementById('publicFolderInput').value = '';
+                loadPublicFiles();
+            });
+        }
+
+        async function uploadPrivateFiles() {
+            if (!currentUser) {
+                showMessage('Please login to upload private files', 'error');
                 return;
             }
+            await uploadFiles(selectedPrivateFiles, 'private', () => {
+                selectedPrivateFiles = [];
+                document.getElementById('privateFileInput').value = '';
+                document.getElementById('privateFolderInput').value = '';
+                loadPrivateFiles();
+            });
+        }
 
+        async function uploadFiles(filesList, type, onComplete) {
+            if (filesList.length === 0) {
+                showMessage(`Please select files first`, 'error');
+                return;
+            }
+            
+            // Show loading overlay and set upload button to loading state
+            showLoading(`Uploading files to ${type} space...`, `0 of ${filesList.length} files uploaded`);
+            setUploadButtonLoading('Upload Selected', true);
+            
             let uploadedCount = 0;
-            for (let file of selectedFiles) {
+            let failedUploads = [];
+            
+            for (let i = 0; i < filesList.length; i++) {
+                const file = filesList[i];
+                const fileName = file.webkitRelativePath || file.name;
+                
+                // Update progress
+                showLoading(
+                    `Uploading: ${fileName}`,
+                    `${uploadedCount} of ${filesList.length} files uploaded`
+                );
+                
                 const formData = new FormData();
                 formData.append('file', file);
                 
@@ -270,28 +1115,51 @@
                 try {
                     const response = await fetch('/upload', {
                         method: 'POST',
+                        credentials: type === 'private' ? 'include' : 'same-origin',
                         body: formData
                     });
 
                     if (response.ok) {
                         uploadedCount++;
                     } else {
-                        showMessage(`Failed to upload ${file.webkitRelativePath || file.name}`, 'error');
+                        failedUploads.push(fileName);
+                        console.error(`Failed to upload ${fileName}`);
                     }
                 } catch (error) {
-                    showMessage(`Error uploading ${file.webkitRelativePath || file.name}: ${error.message}`, 'error');
+                    failedUploads.push(fileName);
+                    console.error(`Error uploading ${fileName}:`, error.message);
                 }
             }
-
-            showMessage(`${uploadedCount} of ${selectedFiles.length} files uploaded successfully`, 'success');
             
-            selectedFiles = [];
-            document.getElementById('fileInput').value = '';
-            document.getElementById('folderInput').value = '';
-            loadFiles();
+            // Hide loading and reset button state
+            hideLoading();
+            setUploadButtonLoading('Upload Selected', false);
+
+            // Show result notifications
+            if (uploadedCount > 0) {
+                showMessage(`${uploadedCount} of ${filesList.length} files uploaded successfully to ${type} space`, 'success');
+            }
+            
+            if (failedUploads.length > 0) {
+                showMessage(`Failed to upload ${failedUploads.length} file(s): ${failedUploads.slice(0, 3).join(', ')}${failedUploads.length > 3 ? '...' : ''}`, 'error');
+            }
+            
+            onComplete();
         }
 
-        function renderFileItem(file, container) {
+        function isVideoFile(filename) {
+            const videoExtensions = ['.mp4', '.webm', '.ogg', '.avi', '.mov', '.wmv', '.flv', '.mkv'];
+            const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+            return videoExtensions.includes(ext);
+        }
+
+        function isImageFile(filename) {
+            const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.tiff', '.ico'];
+            const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+            return imageExtensions.includes(ext);
+        }
+
+        function renderFileItem(file, container, space = 'public') {
             if (file.type === 'directory') {
                 const folderCard = document.createElement('div');
                 folderCard.className = 'folder-card';
@@ -308,7 +1176,7 @@
                         <div class="folder-toggle">▶</div>
                     </div>
                     <div class="file-actions">
-                        <button class="btn btn-delete" onclick="deleteFile('${file.path}')">Delete</button>
+                        <button class="btn btn-delete" onclick="deleteFile('${file.path}', '${space}')">Delete</button>
                     </div>
                     <div class="folder-children">
                     </div>
@@ -316,25 +1184,67 @@
                 
                 const childrenContainer = folderCard.querySelector('.folder-children');
                 file.children.forEach(child => {
-                    renderFileItem(child, childrenContainer);
+                    renderFileItem(child, childrenContainer, space);
                 });
                 
                 container.appendChild(folderCard);
             } else {
+                const isVideo = isVideoFile(file.name);
+                const isImage = isImageFile(file.name);
                 const fileCard = document.createElement('div');
-                fileCard.className = 'file-card';
                 
-                fileCard.innerHTML = `
-                    <div class="file-name">📄 ${file.name}</div>
-                    <div class="file-info">
-                        Size: ${formatFileSize(file.size)}<br>
-                        Modified: ${new Date(file.modified).toLocaleString()}
-                    </div>
-                    <div class="file-actions">
-                        <a href="/download/${encodeURIComponent(file.path)}" class="btn btn-download">Download</a>
-                        <button class="btn btn-delete" onclick="deleteFile('${file.path}')">Delete</button>
-                    </div>
-                `;
+                if (isVideo) {
+                    fileCard.className = 'video-card';
+                    fileCard.innerHTML = `
+                        <div class="file-name">🎬 ${file.name}</div>
+                        <div class="file-info">
+                            Size: ${formatFileSize(file.size)}<br>
+                            Modified: ${new Date(file.modified).toLocaleString()}
+                        </div>
+                        <video class="video-player" controls preload="metadata">
+                            <source src="/stream/${space}/${encodeURIComponent(file.path)}" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        <div class="file-actions">
+                            <a href="/download/${space}/${encodeURIComponent(file.path)}" class="btn btn-download">Download</a>
+                            <button class="btn btn-delete" onclick="deleteFile('${file.path}', '${space}')">Delete</button>
+                        </div>
+                    `;
+                } else if (isImage) {
+                    fileCard.className = 'image-card';
+                    const imageIcon = file.name.toLowerCase().endsWith('.gif') ? '🎞️' : '🖼️';
+                    fileCard.innerHTML = `
+                        <div class="file-name">${imageIcon} ${file.name}</div>
+                        <div class="file-info">
+                            Size: ${formatFileSize(file.size)}<br>
+                            Modified: ${new Date(file.modified).toLocaleString()}
+                        </div>
+                        <img class="image-player" src="/image/${space}/${encodeURIComponent(file.path)}" 
+                             alt="${file.name}" 
+                             onclick="openLightbox('/image/${space}/${encodeURIComponent(file.path)}', '${file.name}')"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <div style="display:none; text-align:center; padding:20px; background:#f8f9fa; border-radius:4px; margin:10px 0;">
+                            <p style="color:#666; margin:0;">🖼️ Image preview not available</p>
+                        </div>
+                        <div class="file-actions">
+                            <a href="/download/${space}/${encodeURIComponent(file.path)}" class="btn btn-download">Download</a>
+                            <button class="btn btn-delete" onclick="deleteFile('${file.path}', '${space}')">Delete</button>
+                        </div>
+                    `;
+                } else {
+                    fileCard.className = 'file-card';
+                    fileCard.innerHTML = `
+                        <div class="file-name">📄 ${file.name}</div>
+                        <div class="file-info">
+                            Size: ${formatFileSize(file.size)}<br>
+                            Modified: ${new Date(file.modified).toLocaleString()}
+                        </div>
+                        <div class="file-actions">
+                            <a href="/download/${space}/${encodeURIComponent(file.path)}" class="btn btn-download">Download</a>
+                            <button class="btn btn-delete" onclick="deleteFile('${file.path}', '${space}')">Delete</button>
+                        </div>
+                    `;
+                }
                 container.appendChild(fileCard);
             }
         }
@@ -353,90 +1263,171 @@
             }
         }
 
-        async function loadFiles() {
+        async function loadPublicFiles() {
             try {
-                const response = await fetch('/files');
+                const response = await fetch('/files/public');
                 const files = await response.json();
                 
-                const fileGrid = document.getElementById('fileGrid');
+                const fileGrid = document.getElementById('publicFileGrid');
                 fileGrid.innerHTML = '';
 
                 if (files.length === 0) {
-                    fileGrid.innerHTML = '<p>No files uploaded yet</p>';
+                    fileGrid.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No public files uploaded yet</p>';
                     return;
                 }
 
                 files.forEach(file => {
-                    renderFileItem(file, fileGrid);
+                    renderFileItem(file, fileGrid, 'public');
                 });
             } catch (error) {
-                showMessage('Error loading files: ' + error.message, 'error');
+                showMessage('Error loading public files: ' + error.message, 'error');
             }
         }
 
-        async function deleteFile(filePath) {
+        async function loadPrivateFiles() {
+            if (!currentUser) return;
+            
+            try {
+                const response = await fetch('/files/private', {
+                    credentials: 'include'
+                });
+                const files = await response.json();
+                
+                const fileGrid = document.getElementById('privateFileGrid');
+                fileGrid.innerHTML = '';
+
+                if (files.length === 0) {
+                    fileGrid.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No private files uploaded yet</p>';
+                    return;
+                }
+
+                files.forEach(file => {
+                    renderFileItem(file, fileGrid, 'private');
+                });
+            } catch (error) {
+                showMessage('Error loading private files: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteFile(filePath, space = 'public') {
             if (!confirm(`Are you sure you want to delete ${filePath}?`)) {
                 return;
             }
+            
+            // Show loading for delete operation
+            showLoading(`Deleting ${filePath}...`);
 
             try {
-                const response = await fetch(`/delete/${encodeURIComponent(filePath)}`, {
-                    method: 'DELETE'
+                const response = await fetch(`/delete/${space}/${encodeURIComponent(filePath)}`, {
+                    method: 'DELETE',
+                    credentials: space === 'private' ? 'include' : 'same-origin'
                 });
 
+                hideLoading();
+                
                 if (response.ok) {
                     showMessage(`${filePath} deleted successfully`, 'success');
-                    loadFiles();
+                    if (space === 'public') {
+                        loadPublicFiles();
+                    } else {
+                        loadPrivateFiles();
+                    }
                 } else {
                     showMessage(`Failed to delete ${filePath}`, 'error');
                 }
             } catch (error) {
+                hideLoading();
                 showMessage(`Error deleting ${filePath}: ${error.message}`, 'error');
             }
         }
 
-        // Drag and drop functionality
-        const uploadSection = document.querySelector('.upload-section');
+        // Drag and drop functionality for public section
+        const publicUploadSection = document.querySelector('#publicSection .upload-section');
         
-        uploadSection.addEventListener('dragover', (e) => {
+        publicUploadSection.addEventListener('dragover', (e) => {
             e.preventDefault();
-            uploadSection.style.borderColor = '#007bff';
-            uploadSection.style.background = '#f0f8ff';
+            publicUploadSection.style.borderColor = '#007bff';
+            publicUploadSection.style.background = '#f0f8ff';
         });
 
-        uploadSection.addEventListener('dragleave', (e) => {
+        publicUploadSection.addEventListener('dragleave', (e) => {
             e.preventDefault();
-            uploadSection.style.borderColor = '#ddd';
-            uploadSection.style.background = '#fafafa';
+            publicUploadSection.style.borderColor = '#ddd';
+            publicUploadSection.style.background = '#fafafa';
         });
 
-        uploadSection.addEventListener('drop', async (e) => {
+        publicUploadSection.addEventListener('drop', async (e) => {
             e.preventDefault();
-            uploadSection.style.borderColor = '#ddd';
-            uploadSection.style.background = '#fafafa';
+            publicUploadSection.style.borderColor = '#ddd';
+            publicUploadSection.style.background = '#fafafa';
             
             const items = e.dataTransfer.items;
-            selectedFiles = [];
+            selectedPublicFiles = [];
             
             // Process dropped items (files and folders)
             for (let item of items) {
                 if (item.kind === 'file') {
                     const entry = item.webkitGetAsEntry();
                     if (entry) {
-                        await processEntry(entry, '');
+                        await processEntry(entry, '', 'public');
                     }
                 }
             }
             
-            showMessage(`${selectedFiles.length} file(s) selected`, 'success');
+            showMessage(`${selectedPublicFiles.length} file(s) selected for public upload`, 'success');
+        });
+
+        // Drag and drop functionality for private section
+        const privateUploadSection = document.querySelector('#privateSection .upload-section');
+        
+        privateUploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            privateUploadSection.style.borderColor = '#007bff';
+            privateUploadSection.style.background = '#f0f8ff';
+        });
+
+        privateUploadSection.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            privateUploadSection.style.borderColor = '#ddd';
+            privateUploadSection.style.background = '#fafafa';
+        });
+
+        privateUploadSection.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            privateUploadSection.style.borderColor = '#ddd';
+            privateUploadSection.style.background = '#fafafa';
+            
+            if (!currentUser) {
+                showMessage('Please login to upload private files', 'error');
+                return;
+            }
+            
+            const items = e.dataTransfer.items;
+            selectedPrivateFiles = [];
+            
+            // Process dropped items (files and folders)
+            for (let item of items) {
+                if (item.kind === 'file') {
+                    const entry = item.webkitGetAsEntry();
+                    if (entry) {
+                        await processEntry(entry, '', 'private');
+                    }
+                }
+            }
+            
+            showMessage(`${selectedPrivateFiles.length} file(s) selected for private upload`, 'success');
         });
         
         // Function to recursively process dropped folders
-        async function processEntry(entry, path = '') {
+        async function processEntry(entry, path = '', space = 'public') {
             if (entry.isFile) {
                 entry.file(file => {
                     file.webkitRelativePath = path + file.name;
-                    selectedFiles.push(file);
+                    if (space === 'public') {
+                        selectedPublicFiles.push(file);
+                    } else {
+                        selectedPrivateFiles.push(file);
+                    }
                 });
             } else if (entry.isDirectory) {
                 const dirReader = entry.createReader();
@@ -445,13 +1436,44 @@
                 });
                 
                 for (let childEntry of entries) {
-                    await processEntry(childEntry, path + entry.name + '/');
+                    await processEntry(childEntry, path + entry.name + '/', space);
                 }
             }
         }
 
-        // Load files when page loads
-        loadFiles();
+        // Lightbox functions for image viewing
+        function openLightbox(imageSrc, imageName) {
+            const lightbox = document.getElementById('lightbox');
+            const lightboxImage = document.getElementById('lightbox-image');
+            
+            lightboxImage.src = imageSrc;
+            lightboxImage.alt = imageName;
+            lightbox.style.display = 'block';
+            
+            // Prevent body scrolling when lightbox is open
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeLightbox() {
+            const lightbox = document.getElementById('lightbox');
+            lightbox.style.display = 'none';
+            
+            // Restore body scrolling
+            document.body.style.overflow = 'auto';
+        }
+        
+        // Close lightbox with Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeLightbox();
+            }
+        });
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuthStatus();
+            loadPublicFiles();
+        });
     </script>
 </body>
 </html>

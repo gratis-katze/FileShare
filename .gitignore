@@ -1,0 +1,5 @@
+node_modules/
+uploads/
+temp/
+users.json
+.DS_Store
