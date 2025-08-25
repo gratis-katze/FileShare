@@ -219,7 +219,7 @@ async function processUpload(req, res) {
   }
 }
 
-// Download routes
+// Download routes - handle both regular downloads and folder downloads based on mount point
 router.get('/download/public/*', (req, res) => {
   const requestedPath = req.params[0];
   const actualFilePath = path.join(publicDir, requestedPath);
@@ -266,9 +266,9 @@ router.get('/download/private/*', requireAuth, (req, res) => {
 router.get('/download/*', (req, res) => {
   const requestedPath = req.params[0];
   if (req.session.user) {
-    res.redirect(`/download/private/${requestedPath}`);
+    res.redirect(`/files/download/private/${requestedPath}`);
   } else {
-    res.redirect(`/download/public/${requestedPath}`);
+    res.redirect(`/files/download/public/${requestedPath}`);
   }
 });
 
@@ -297,9 +297,9 @@ router.get('/download-folder/private/*', requireAuth, (req, res) => {
 router.get('/download-folder/*', (req, res) => {
   const requestedPath = decodeURIComponent(req.params[0]);
   if (req.session.user) {
-    res.redirect(`/download-folder/private/${requestedPath}`);
+    res.redirect(`/files/download-folder/private/${requestedPath}`);
   } else {
-    res.redirect(`/download-folder/public/${requestedPath}`);
+    res.redirect(`/files/download-folder/public/${requestedPath}`);
   }
 });
 

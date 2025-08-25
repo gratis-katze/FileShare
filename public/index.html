@@ -1501,7 +1501,7 @@
                         <div class="folder-toggle">▶</div>
                     </div>
                     <div class="file-actions">
-                        <a href="/download-folder/${space}/${encodeURIComponent(file.path)}" class="btn btn-download folder-download">📁 Download Folder</a>
+                        <a href="/files/download-folder/${space}/${encodeURIComponent(file.path)}" class="btn btn-download folder-download">📁 Download Folder</a>
                         <button class="btn btn-delete" onclick="deleteFile('${file.path}', '${space}')">Delete</button>
                     </div>
                     <div class="folder-children">
@@ -1532,7 +1532,7 @@
                             Your browser does not support the video tag.
                         </video>
                         <div class="file-actions">
-                            <a href="/download/${space}/${encodeURIComponent(file.path)}" class="btn btn-download">Download</a>
+                            <a href="/files/download/${space}/${encodeURIComponent(file.path)}" class="btn btn-download">Download</a>
                             <button class="btn btn-delete" onclick="deleteFile('${file.path}', '${space}')">Delete</button>
                         </div>
                     `;
@@ -1553,7 +1553,7 @@
                             <p style="color:#666; margin:0;">🖼️ Image preview not available</p>
                         </div>
                         <div class="file-actions">
-                            <a href="/download/${space}/${encodeURIComponent(file.path)}" class="btn btn-download">Download</a>
+                            <a href="/files/download/${space}/${encodeURIComponent(file.path)}" class="btn btn-download">Download</a>
                             <button class="btn btn-delete" onclick="deleteFile('${file.path}', '${space}')">Delete</button>
                         </div>
                     `;
@@ -1566,7 +1566,7 @@
                             Modified: ${new Date(file.modified).toLocaleString()}
                         </div>
                         <div class="file-actions">
-                            <a href="/download/${space}/${encodeURIComponent(file.path)}" class="btn btn-download">Download</a>
+                            <a href="/files/download/${space}/${encodeURIComponent(file.path)}" class="btn btn-download">Download</a>
                             <button class="btn btn-delete" onclick="deleteFile('${file.path}', '${space}')">Delete</button>
                         </div>
                     `;

@@ -43,10 +43,6 @@ app.get('/', (req, res) => {
 
 app.use('/auth', authRoutes);
 app.use('/files', fileRoutes);
-app.use('/upload', fileRoutes);
-app.use('/download', fileRoutes);
-app.use('/download-folder', fileRoutes);
-app.use('/delete', fileRoutes);
 app.use('/', streamingRoutes);
 
 app.listen(PORT, '0.0.0.0', () => {
