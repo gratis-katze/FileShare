@@ -1490,7 +1490,7 @@
             showLoading(`Deleting ${filePath}...`);
 
             try {
-                const response = await fetch(`/delete/${space}/${encodeURIComponent(filePath)}`, {
+                const response = await fetch(`/files/delete/${space}/${encodeURIComponent(filePath)}`, {
                     method: 'DELETE',
                     credentials: space === 'private' ? 'include' : 'same-origin'
                 });
