@@ -1,4 +1,4 @@
-# FileShare - Cloud Storage Server
+# FelixShare - Cloud Storage Server
 
 A simple file transfer application that turns any laptop into personal cloud storage. Access your files locally or from anywhere on the internet!
 
