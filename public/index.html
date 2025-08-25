@@ -84,6 +84,47 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
+        .folder-card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            cursor: pointer;
+        }
+
+        .folder-card:hover {
+            background: #e9ecef;
+        }
+
+        .folder-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .folder-toggle {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .folder-children {
+            margin-top: 10px;
+            padding-left: 20px;
+            border-left: 2px solid #e9ecef;
+            display: none;
+        }
+
+        .folder-children.expanded {
+            display: block;
+        }
+
+        .folder-children .file-card,
+        .folder-children .folder-card {
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
         .file-name {
             font-weight: bold;
             margin-bottom: 8px;
@@ -193,9 +234,13 @@
             messageEl.textContent = text;
             messageEl.className = `message ${type}`;
             messageEl.style.display = 'block';
-            setTimeout(() => {
-                messageEl.style.display = 'none';
-            }, 5000);
+            
+            // Only auto-hide error messages, keep success messages visible
+            if (type === 'error') {
+                setTimeout(() => {
+                    messageEl.style.display = 'none';
+                }, 5000);
+            }
         }
 
         function formatFileSize(bytes) {
@@ -246,6 +291,68 @@
             loadFiles();
         }
 
+        function renderFileItem(file, container) {
+            if (file.type === 'directory') {
+                const folderCard = document.createElement('div');
+                folderCard.className = 'folder-card';
+                
+                folderCard.innerHTML = `
+                    <div class="folder-header" onclick="toggleFolder(this)">
+                        <div>
+                            <div class="file-name">📁 ${file.name}</div>
+                            <div class="file-info">
+                                ${file.fileCount} file(s)<br>
+                                Modified: ${new Date(file.modified).toLocaleString()}
+                            </div>
+                        </div>
+                        <div class="folder-toggle">▶</div>
+                    </div>
+                    <div class="file-actions">
+                        <button class="btn btn-delete" onclick="deleteFile('${file.path}')">Delete</button>
+                    </div>
+                    <div class="folder-children">
+                    </div>
+                `;
+                
+                const childrenContainer = folderCard.querySelector('.folder-children');
+                file.children.forEach(child => {
+                    renderFileItem(child, childrenContainer);
+                });
+                
+                container.appendChild(folderCard);
+            } else {
+                const fileCard = document.createElement('div');
+                fileCard.className = 'file-card';
+                
+                fileCard.innerHTML = `
+                    <div class="file-name">📄 ${file.name}</div>
+                    <div class="file-info">
+                        Size: ${formatFileSize(file.size)}<br>
+                        Modified: ${new Date(file.modified).toLocaleString()}
+                    </div>
+                    <div class="file-actions">
+                        <a href="/download/${encodeURIComponent(file.path)}" class="btn btn-download">Download</a>
+                        <button class="btn btn-delete" onclick="deleteFile('${file.path}')">Delete</button>
+                    </div>
+                `;
+                container.appendChild(fileCard);
+            }
+        }
+
+        function toggleFolder(headerElement) {
+            const folderCard = headerElement.closest('.folder-card');
+            const childrenContainer = folderCard.querySelector('.folder-children');
+            const toggleIcon = headerElement.querySelector('.folder-toggle');
+            
+            if (childrenContainer.classList.contains('expanded')) {
+                childrenContainer.classList.remove('expanded');
+                toggleIcon.textContent = '▶';
+            } else {
+                childrenContainer.classList.add('expanded');
+                toggleIcon.textContent = '▼';
+            }
+        }
+
         async function loadFiles() {
             try {
                 const response = await fetch('/files');
@@ -260,25 +367,7 @@
                 }
 
                 files.forEach(file => {
-                    const fileCard = document.createElement('div');
-                    fileCard.className = 'file-card';
-                    
-                    const isDirectory = file.type === 'directory';
-                    const displayPath = file.path || file.name;
-                    const icon = isDirectory ? '📁' : '📄';
-                    
-                    fileCard.innerHTML = `
-                        <div class="file-name">${icon} ${displayPath}</div>
-                        <div class="file-info">
-                            ${isDirectory ? 'Directory' : `Size: ${formatFileSize(file.size)}`}<br>
-                            Modified: ${new Date(file.modified).toLocaleString()}
-                        </div>
-                        <div class="file-actions">
-                            ${!isDirectory ? `<a href="/download/${encodeURIComponent(file.path)}" class="btn btn-download">Download</a>` : ''}
-                            <button class="btn btn-delete" onclick="deleteFile('${file.path}')">Delete</button>
-                        </div>
-                    `;
-                    fileGrid.appendChild(fileCard);
+                    renderFileItem(file, fileGrid);
                 });
             } catch (error) {
                 showMessage('Error loading files: ' + error.message, 'error');

@@ -41,14 +41,17 @@ function getFilesRecursively(dir, basePath = '') {
     const stats = fs.statSync(itemPath);
     
     if (stats.isDirectory()) {
+      const children = getFilesRecursively(itemPath, relativePath);
       files.push({
         name: item,
         path: relativePath,
         type: 'directory',
         size: 0,
-        modified: stats.mtime
+        modified: stats.mtime,
+        children: children,
+        fileCount: children.filter(child => child.type === 'file').length + 
+                  children.filter(child => child.type === 'directory').reduce((sum, child) => sum + (child.fileCount || 0), 0)
       });
-      files.push(...getFilesRecursively(itemPath, relativePath));
     } else {
       files.push({
         name: item,
@@ -63,9 +66,43 @@ function getFilesRecursively(dir, basePath = '') {
   return files;
 }
 
+function getTopLevelItems(dir) {
+  const items = [];
+  const dirItems = fs.readdirSync(dir);
+  
+  dirItems.forEach(item => {
+    const itemPath = path.join(dir, item);
+    const stats = fs.statSync(itemPath);
+    
+    if (stats.isDirectory()) {
+      const children = getFilesRecursively(itemPath, item);
+      items.push({
+        name: item,
+        path: item,
+        type: 'directory',
+        size: 0,
+        modified: stats.mtime,
+        children: children,
+        fileCount: children.filter(child => child.type === 'file').length + 
+                  children.filter(child => child.type === 'directory').reduce((sum, child) => sum + (child.fileCount || 0), 0)
+      });
+    } else {
+      items.push({
+        name: item,
+        path: item,
+        type: 'file',
+        size: stats.size,
+        modified: stats.mtime
+      });
+    }
+  });
+  
+  return items;
+}
+
 app.get('/files', (req, res) => {
   try {
-    const fileList = getFilesRecursively(uploadDir);
+    const fileList = getTopLevelItems(uploadDir);
     res.json(fileList);
   } catch (err) {
     res.status(500).json({ error: 'Unable to read files' });
