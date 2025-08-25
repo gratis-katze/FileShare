@@ -179,7 +179,7 @@ router.delete('/delete/public/*', (req, res) => {
   const stats = fs.statSync(actualFilePath);
   
   if (stats.isDirectory()) {
-    fs.rmdir(actualFilePath, { recursive: true }, (err) => {
+    fs.rm(actualFilePath, { recursive: true, force: true }, (err) => {
       if (err) {
         return res.status(500).json({ error: 'Unable to delete directory' });
       }
@@ -238,7 +238,7 @@ router.delete('/delete/private/*', requireAuth, (req, res) => {
     const directoryPath = path.join(userDir, requestedPath);
     try {
       if (fs.existsSync(directoryPath)) {
-        fs.rmdirSync(directoryPath, { recursive: true });
+        fs.rmSync(directoryPath, { recursive: true, force: true });
       }
     } catch (error) {
       console.log('Could not remove directory structure:', error.message);
