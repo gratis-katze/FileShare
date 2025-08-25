@@ -33,7 +33,10 @@ npm start
 
 ### Internet Access
 ```bash
-npm run online
+npm run ngrok
+```
+```bash
+npm run serveo
 ```
 - Automatically starts server and creates secure tunnel
 - Provides public URL for internet access
