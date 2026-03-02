@@ -428,6 +428,90 @@ router.delete('/delete/*', (req, res) => {
   }
 });
 
+// Rename routes
+router.patch('/rename/public/*', (req, res) => {
+  const oldPath = req.params[0];
+  const { newName } = req.body;
+
+  if (!newName || newName.includes('/')) {
+    return res.status(400).json({ error: 'Invalid new name' });
+  }
+
+  const oldFullPath = path.join(publicDir, oldPath);
+  const newPath = path.join(path.dirname(oldPath), newName);
+  const newFullPath = path.join(publicDir, newPath);
+
+  if (!fs.existsSync(oldFullPath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+
+  if (fs.existsSync(newFullPath)) {
+    return res.status(409).json({ error: 'A file with that name already exists' });
+  }
+
+  try {
+    fs.renameSync(oldFullPath, newFullPath);
+    res.json({ message: 'Renamed successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to rename' });
+  }
+});
+
+router.patch('/rename/private/*', requireAuth, (req, res) => {
+  const oldPath = req.params[0];
+  const { newName } = req.body;
+  const username = req.session.user.name;
+  const userDir = getUserUploadDir(username);
+
+  if (!newName || newName.includes('/')) {
+    return res.status(400).json({ error: 'Invalid new name' });
+  }
+
+  const fileMapping = loadFileMapping(username);
+  const newPath = path.join(path.dirname(oldPath), newName).replace(/\\/g, '/');
+
+  const matchingKeys = Object.keys(fileMapping).filter(key =>
+    key === oldPath || key.startsWith(oldPath + '/')
+  );
+
+  if (matchingKeys.length === 0) {
+    return res.status(404).json({ error: 'File or directory not found' });
+  }
+
+  const conflictingKeys = Object.keys(fileMapping).filter(key =>
+    key === newPath || key.startsWith(newPath + '/')
+  );
+
+  if (conflictingKeys.length > 0) {
+    return res.status(409).json({ error: 'A file with that name already exists' });
+  }
+
+  const isFolder = matchingKeys.some(key => key.startsWith(oldPath + '/'));
+
+  if (isFolder) {
+    matchingKeys
+      .filter(key => key.startsWith(oldPath + '/'))
+      .forEach(key => {
+        const newKey = newPath + '/' + key.slice(oldPath.length + 1);
+        fileMapping[newKey] = fileMapping[key];
+        delete fileMapping[key];
+      });
+
+    const oldDirPath = path.join(userDir, oldPath);
+    const newDirPath = path.join(userDir, newPath);
+    if (fs.existsSync(oldDirPath)) {
+      fs.renameSync(oldDirPath, newDirPath);
+    }
+  } else {
+    const hash = fileMapping[oldPath];
+    delete fileMapping[oldPath];
+    fileMapping[newPath] = hash;
+  }
+
+  saveFileMapping(username, fileMapping);
+  res.json({ message: 'Renamed successfully' });
+});
+
 // Utility functions for folder downloads
 function downloadFolderAsZip(folderPath, folderName, res, isEncrypted = false) {
   const archive = archiver('zip', {

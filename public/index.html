@@ -180,7 +180,7 @@
 
         .file-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(var(--tile-size, 300px), 1fr));
             gap: 15px;
             margin-top: 20px;
         }
@@ -266,13 +266,13 @@
         }
 
         .btn {
-            padding: 6px 12px;
+            padding: clamp(3px, calc(var(--tile-size, 300px) * 0.02), 10px) clamp(6px, calc(var(--tile-size, 300px) * 0.04), 18px);
             border: none;
             border-radius: 4px;
             cursor: pointer;
             text-decoration: none;
             display: inline-block;
-            font-size: 12px;
+            font-size: clamp(9px, calc(var(--tile-size, 300px) * 0.04), 18px);
         }
 
         .btn-download {
@@ -290,9 +290,99 @@
             color: white;
         }
 
+        .btn-rename {
+            background: #6c757d;
+            color: white;
+        }
+
         .btn:hover {
             opacity: 0.8;
         }
+
+        .grid-controls {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 15px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sort-controls, .view-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: rgba(255,255,255,0.8);
+            font-size: 14px;
+        }
+
+        .sort-dir-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            border-radius: 4px;
+            padding: 4px 10px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .sort-dir-btn:hover { background: rgba(255,255,255,0.2); }
+
+        .sort-controls select {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 14px;
+        }
+
+        .sort-controls select option { background: #1a1a40; }
+
+        .modal-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 20, 50, 0.97);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.5);
+            max-width: 400px;
+            width: 90%;
+            color: white;
+        }
+
+        .modal-box h3 { margin-bottom: 15px; font-size: 18px; }
+
+        .modal-box input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 5px;
+            font-size: 16px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            margin-bottom: 15px;
+        }
+
+        .modal-box input[type="text"]::placeholder { color: rgba(255,255,255,0.5); }
+
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+        .modal-actions button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .modal-actions button:first-child { background: #007bff; color: white; }
+        .modal-actions button:last-child { background: #6c757d; color: white; }
 
 
         /* Popup Notification Styles */
@@ -863,6 +953,23 @@
 
             <div class="files-section">
                 <h3>📂 Public Files</h3>
+                <div class="grid-controls" id="publicGridControls">
+                    <div class="sort-controls">
+                        <label>Sort:</label>
+                        <select id="publicSortBy" onchange="applySort('public')">
+                            <option value="date">Datum</option>
+                            <option value="name">Name</option>
+                            <option value="size">Größe</option>
+                        </select>
+                        <button class="sort-dir-btn" id="publicSortDir" onclick="toggleSortDir('public')">↓</button>
+                    </div>
+                    <div class="view-controls">
+                        <label>Kachelgröße:</label>
+                        <input type="range" min="180" max="520" value="300" step="20"
+                               id="tileSizeSlider" oninput="updateTileSize(this.value)">
+                        <span id="tileSizeLabel">300px</span>
+                    </div>
+                </div>
                 <div class="file-grid" id="publicFileGrid">
                 </div>
             </div>
@@ -914,6 +1021,17 @@
 
             <div class="files-section">
                 <h3>📂 Your Private Files</h3>
+                <div class="grid-controls" id="privateGridControls">
+                    <div class="sort-controls">
+                        <label>Sort:</label>
+                        <select id="privateSortBy" onchange="applySort('private')">
+                            <option value="date">Datum</option>
+                            <option value="name">Name</option>
+                            <option value="size">Größe</option>
+                        </select>
+                        <button class="sort-dir-btn" id="privateSortDir" onclick="toggleSortDir('private')">↓</button>
+                    </div>
+                </div>
                 <div class="file-grid" id="privateFileGrid">
                 </div>
             </div>
@@ -963,6 +1081,18 @@
             </div>
         </div>
 
+        <!-- Rename Modal -->
+        <div class="modal" id="renameModal" onclick="closeRenameModal()">
+            <div class="modal-box" onclick="event.stopPropagation()">
+                <h3>Umbenennen</h3>
+                <input type="text" id="renameInput" placeholder="Neuer Name">
+                <div class="modal-actions">
+                    <button onclick="submitRename()">Umbenennen</button>
+                    <button onclick="closeRenameModal()">Abbrechen</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Loading Overlay -->
         <div class="loading-overlay" id="loadingOverlay">
             <div class="loading-content">
@@ -987,6 +1117,99 @@
         let selectedPublicFiles = [];
         let selectedPrivateFiles = [];
         let currentUser = null;
+
+        const sortState = {
+            public:  { by: 'date', dir: 'desc' },
+            private: { by: 'date', dir: 'desc' }
+        };
+
+        let fileCache = { public: [], private: [] };
+
+        let renameContext = null;
+
+        function sortFiles(files, by, dir) {
+            const sorted = [...files].sort((a, b) => {
+                if (a.type === 'directory' && b.type !== 'directory') return -1;
+                if (b.type === 'directory' && a.type !== 'directory') return 1;
+                let cmp = by === 'name' ? a.name.localeCompare(b.name)
+                        : by === 'size' ? (a.size || 0) - (b.size || 0)
+                        : new Date(a.modified) - new Date(b.modified);
+                return dir === 'asc' ? cmp : -cmp;
+            });
+            return sorted.map(f => f.children
+                ? { ...f, children: sortFiles(f.children, by, dir) }
+                : f
+            );
+        }
+
+        function updateTileSize(px) {
+            document.getElementById('publicFileGrid').style.setProperty('--tile-size', px + 'px');
+            document.getElementById('privateFileGrid').style.setProperty('--tile-size', px + 'px');
+            document.getElementById('tileSizeLabel').textContent = px + 'px';
+        }
+
+        function applySort(space) {
+            const byEl = document.getElementById(space + 'SortBy');
+            if (byEl) sortState[space].by = byEl.value;
+            const { by, dir } = sortState[space];
+            const sorted = sortFiles(fileCache[space], by, dir);
+            const gridId = space === 'public' ? 'publicFileGrid' : 'privateFileGrid';
+            const fileGrid = document.getElementById(gridId);
+            fileGrid.innerHTML = '';
+            if (sorted.length === 0) {
+                fileGrid.innerHTML = `<p style="text-align: center; color: #666; padding: 20px;">No ${space} files uploaded yet</p>`;
+                return;
+            }
+            sorted.forEach(file => renderFileItem(file, fileGrid, space));
+        }
+
+        function toggleSortDir(space) {
+            sortState[space].dir = sortState[space].dir === 'asc' ? 'desc' : 'asc';
+            const btn = document.getElementById(space + 'SortDir');
+            if (btn) btn.textContent = sortState[space].dir === 'asc' ? '↑' : '↓';
+            applySort(space);
+        }
+
+        function renameFile(filePath, space) {
+            renameContext = { filePath, space };
+            const currentName = filePath.split('/').pop();
+            document.getElementById('renameInput').value = currentName;
+            document.getElementById('renameModal').style.display = 'block';
+            setTimeout(() => document.getElementById('renameInput').focus(), 50);
+        }
+
+        function closeRenameModal() {
+            document.getElementById('renameModal').style.display = 'none';
+            renameContext = null;
+        }
+
+        async function submitRename() {
+            const newName = document.getElementById('renameInput').value.trim();
+            if (!renameContext) return;
+            const currentName = renameContext.filePath.split('/').pop();
+            if (!newName || newName === currentName) {
+                closeRenameModal();
+                return;
+            }
+            const { filePath, space } = renameContext;
+            closeRenameModal();
+            try {
+                const res = await fetch(`/files/rename/${space}/${encodeURIComponent(filePath)}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ newName })
+                });
+                if (res.ok) {
+                    space === 'private' ? loadPrivateFiles() : loadPublicFiles();
+                } else {
+                    const err = await res.json();
+                    showMessage('Rename failed: ' + err.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Rename error: ' + error.message, 'error');
+            }
+        }
 
         // Modal functions
         function openModal(modalId) {
@@ -1502,6 +1725,7 @@
                     </div>
                     <div class="file-actions">
                         <a href="/files/download-folder/${space}/${encodeURIComponent(file.path)}" class="btn btn-download folder-download">📁 Download Folder</a>
+                        <button class="btn btn-rename" onclick="renameFile('${file.path}', '${space}')">Rename</button>
                         <button class="btn btn-delete" onclick="deleteFile('${file.path}', '${space}')">Delete</button>
                     </div>
                     <div class="folder-children">
@@ -1533,6 +1757,7 @@
                         </video>
                         <div class="file-actions">
                             <a href="/files/download/${space}/${encodeURIComponent(file.path)}" class="btn btn-download">Download</a>
+                            <button class="btn btn-rename" onclick="renameFile('${file.path}', '${space}')">Rename</button>
                             <button class="btn btn-delete" onclick="deleteFile('${file.path}', '${space}')">Delete</button>
                         </div>
                     `;
@@ -1554,6 +1779,7 @@
                         </div>
                         <div class="file-actions">
                             <a href="/files/download/${space}/${encodeURIComponent(file.path)}" class="btn btn-download">Download</a>
+                            <button class="btn btn-rename" onclick="renameFile('${file.path}', '${space}')">Rename</button>
                             <button class="btn btn-delete" onclick="deleteFile('${file.path}', '${space}')">Delete</button>
                         </div>
                     `;
@@ -1567,6 +1793,7 @@
                         </div>
                         <div class="file-actions">
                             <a href="/files/download/${space}/${encodeURIComponent(file.path)}" class="btn btn-download">Download</a>
+                            <button class="btn btn-rename" onclick="renameFile('${file.path}', '${space}')">Rename</button>
                             <button class="btn btn-delete" onclick="deleteFile('${file.path}', '${space}')">Delete</button>
                         </div>
                     `;
@@ -1593,18 +1820,8 @@
             try {
                 const response = await fetch('/files/public');
                 const files = await response.json();
-                
-                const fileGrid = document.getElementById('publicFileGrid');
-                fileGrid.innerHTML = '';
-
-                if (files.length === 0) {
-                    fileGrid.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No public files uploaded yet</p>';
-                    return;
-                }
-
-                files.forEach(file => {
-                    renderFileItem(file, fileGrid, 'public');
-                });
+                fileCache.public = files;
+                applySort('public');
             } catch (error) {
                 showMessage('Error loading public files: ' + error.message, 'error');
             }
@@ -1612,24 +1829,14 @@
 
         async function loadPrivateFiles() {
             if (!currentUser) return;
-            
+
             try {
                 const response = await fetch('/files/private', {
                     credentials: 'include'
                 });
                 const files = await response.json();
-                
-                const fileGrid = document.getElementById('privateFileGrid');
-                fileGrid.innerHTML = '';
-
-                if (files.length === 0) {
-                    fileGrid.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No private files uploaded yet</p>';
-                    return;
-                }
-
-                files.forEach(file => {
-                    renderFileItem(file, fileGrid, 'private');
-                });
+                fileCache.private = files;
+                applySort('private');
             } catch (error) {
                 showMessage('Error loading private files: ' + error.message, 'error');
             }
@@ -1788,11 +1995,16 @@
             document.body.style.overflow = 'auto';
         }
         
-        // Close lightbox with Escape key
+        // Keyboard shortcuts
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
                 closeLightbox();
+                closeRenameModal();
             }
+        });
+
+        document.getElementById('renameInput').addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') submitRename();
         });
 
         // Deep Space Animation Functions
