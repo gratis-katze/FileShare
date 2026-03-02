@@ -4,7 +4,7 @@ const path = require('path');
 const { requireAuth } = require('../middleware/auth');
 const { publicDir } = require('../utils/constants');
 const { getUserUploadDir } = require('../services/fileOperations');
-const { decryptFile } = require('../services/encryption');
+const { getDecryptedFileSize, createDecryptStream } = require('../services/encryption');
 const { loadFileMapping, resolveObfuscatedPath } = require('../services/fileMapping');
 
 const router = express.Router();
@@ -75,13 +75,24 @@ router.get('/stream/private/*', requireAuth, (req, res) => {
   }
 
   try {
-    const encryptedBuffer = fs.readFileSync(actualFilePath);
-    const decryptedBuffer = decryptFile(encryptedBuffer);
-
     const ext = path.extname(requestedPath).toLowerCase();
     const contentType = videoMimeTypes[ext] || 'video/mp4';
-    const fileSize = decryptedBuffer.length;
+    const fileSize = getDecryptedFileSize(actualFilePath);
     const range = req.headers.range;
+
+    const pipeStream = (start, end, statusCode, headers) => {
+      const decryptStream = createDecryptStream(actualFilePath, start, end);
+      decryptStream.on('error', (err) => {
+        console.error('Decrypt stream error:', err);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Unable to stream file' });
+        } else {
+          res.destroy();
+        }
+      });
+      res.writeHead(statusCode, headers);
+      decryptStream.pipe(res);
+    };
 
     if (range) {
       const parts = range.replace(/bytes=/, "").split("-");
@@ -89,23 +100,22 @@ router.get('/stream/private/*', requireAuth, (req, res) => {
       const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
       const chunksize = (end - start) + 1;
 
-      res.writeHead(206, {
+      pipeStream(start, end, 206, {
         'Content-Range': `bytes ${start}-${end}/${fileSize}`,
         'Accept-Ranges': 'bytes',
         'Content-Length': chunksize,
         'Content-Type': contentType,
       });
-      res.end(decryptedBuffer.slice(start, end + 1));
     } else {
-      res.writeHead(200, {
+      pipeStream(0, fileSize - 1, 200, {
         'Content-Length': fileSize,
         'Content-Type': contentType,
         'Accept-Ranges': 'bytes',
       });
-      res.end(decryptedBuffer);
     }
   } catch (error) {
-    res.status(500).json({ error: 'Unable to decrypt and stream file' });
+    console.error('Error streaming private file:', error);
+    res.status(500).json({ error: 'Unable to stream file' });
   }
 });
 

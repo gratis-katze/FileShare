@@ -8,32 +8,27 @@ function getUserUploadDir(username) {
   return path.join(uploadDir, username);
 }
 
-function getFilesRecursively(dir, basePath = '', username = null) {
+function getFilesRecursively(dir, basePath = '', reverseMapping = {}) {
   const files = [];
   const items = fs.readdirSync(dir);
-  
-  let reverseMapping = {};
-  if (username) {
-    const fileMapping = loadFileMapping(username);
-    reverseMapping = createReverseMapping(fileMapping);
-  }
-  
+  const hasMapping = Object.keys(reverseMapping).length > 0;
+
   items.forEach(item => {
     if (item === '.filemapping.json') return;
-    
+
     const itemPath = path.join(dir, item);
     const stats = fs.statSync(itemPath);
-    
+
     // For private files the reverse mapping value is the full original path
     // (e.g. "folder/photo.jpg"). Strip to just the basename for display so we
     // don't end up with double-folder names like "folder/folder/photo.jpg".
-    const fullOriginalPath = username ? reverseMapping[item] : null;
+    const fullOriginalPath = hasMapping ? reverseMapping[item] : null;
     const displayName = fullOriginalPath ? path.basename(fullOriginalPath) : item;
     // Keep the full original path as relativePath so route lookups work correctly.
     const relativePath = fullOriginalPath || (basePath ? path.join(basePath, displayName) : displayName);
-    
+
     if (stats.isDirectory()) {
-      const children = getFilesRecursively(itemPath, relativePath, username);
+      const children = getFilesRecursively(itemPath, relativePath, reverseMapping);
       files.push({
         name: displayName,
         path: relativePath,
@@ -77,7 +72,7 @@ function getTopLevelItems(dir, username = null) {
     const displayName = username && reverseMapping[item] ? reverseMapping[item] : item;
     
     if (stats.isDirectory()) {
-      const children = getFilesRecursively(itemPath, displayName, username);
+      const children = getFilesRecursively(itemPath, displayName, reverseMapping);
       items.push({
         name: displayName,
         path: displayName,
