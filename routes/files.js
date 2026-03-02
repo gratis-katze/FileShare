@@ -7,7 +7,7 @@ const { requireAuth } = require('../middleware/auth');
 const { publicDir, tempDir } = require('../utils/constants');
 const { getUserUploadDir, getTopLevelItems, ensureDirectoryExists } = require('../services/fileOperations');
 const { encryptFile, decryptFile } = require('../services/encryption');
-const { obfuscateFilename, loadFileMapping, saveFileMapping } = require('../services/fileMapping');
+const { obfuscateFilename, loadFileMapping, saveFileMapping, resolveObfuscatedPath } = require('../services/fileMapping');
 
 const router = express.Router();
 
@@ -234,26 +234,24 @@ router.get('/download/public/*', (req, res) => {
 router.get('/download/private/*', requireAuth, (req, res) => {
   const requestedPath = req.params[0];
   const userDir = getUserUploadDir(req.session.user.name);
-  
+
   const fileMapping = loadFileMapping(req.session.user.name);
-  const obfuscatedName = fileMapping[requestedPath];
-  
-  if (!obfuscatedName) {
+  const actualFilePath = resolveObfuscatedPath(userDir, fileMapping, requestedPath);
+
+  if (!actualFilePath) {
     return res.status(404).json({ error: 'File not found' });
   }
-  
-  const actualFilePath = path.join(userDir, obfuscatedName);
-  
+
   if (!fs.existsSync(actualFilePath)) {
     return res.status(404).json({ error: 'File not found' });
   }
-  
+
   try {
     const encryptedBuffer = fs.readFileSync(actualFilePath);
     const decryptedBuffer = decryptFile(encryptedBuffer);
-    
+
     res.set({
-      'Content-Disposition': `attachment; filename="${requestedPath}"`,
+      'Content-Disposition': `attachment; filename="${path.basename(requestedPath)}"`,
       'Content-Type': 'application/octet-stream'
     });
     res.send(decryptedBuffer);
@@ -354,11 +352,10 @@ router.delete('/delete/private/*', requireAuth, (req, res) => {
     // It's a directory - we need to delete all files in it and clean up the directory
     let deletedFiles = 0;
     let errors = [];
-    
+
     filesInPath.forEach(filePath => {
-      const obfuscatedName = fileMapping[filePath];
-      if (obfuscatedName) {
-        const actualFilePath = path.join(userDir, obfuscatedName);
+      const actualFilePath = resolveObfuscatedPath(userDir, fileMapping, filePath);
+      if (actualFilePath) {
         try {
           if (fs.existsSync(actualFilePath)) {
             fs.unlinkSync(actualFilePath);
@@ -397,14 +394,12 @@ router.delete('/delete/private/*', requireAuth, (req, res) => {
     res.json({ message: `Directory deleted successfully (${deletedFiles} files removed)` });
   } else {
     // It's a single file
-    const obfuscatedName = fileMapping[requestedPath];
-    
-    if (!obfuscatedName) {
+    const actualFilePath = resolveObfuscatedPath(userDir, fileMapping, requestedPath);
+
+    if (!actualFilePath) {
       return res.status(404).json({ error: 'File not found' });
     }
-    
-    const actualFilePath = path.join(userDir, obfuscatedName);
-    
+
     if (!fs.existsSync(actualFilePath)) {
       return res.status(404).json({ error: 'File not found' });
     }
@@ -506,10 +501,9 @@ function downloadPrivateFolderAsZip(requestedPath, userDir, username, res) {
     const totalFiles = folderFiles.length;
 
     folderFiles.forEach((filePath, index) => {
-      const obfuscatedName = fileMapping[filePath];
-      const actualFilePath = path.join(userDir, obfuscatedName);
+      const actualFilePath = resolveObfuscatedPath(userDir, fileMapping, filePath);
 
-      if (fs.existsSync(actualFilePath)) {
+      if (actualFilePath && fs.existsSync(actualFilePath)) {
         try {
           const encryptedBuffer = fs.readFileSync(actualFilePath);
           const decryptedBuffer = decryptFile(encryptedBuffer);

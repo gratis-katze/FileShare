@@ -42,9 +42,21 @@ function createReverseMapping(fileMapping) {
   return reverseMapping;
 }
 
+// Returns the absolute path on disk for an original (unobfuscated) file path.
+// Obfuscated files in sub-directories are stored inside that sub-directory, not flat in userDir.
+function resolveObfuscatedPath(userDir, fileMapping, originalPath) {
+  const obfuscatedName = fileMapping[originalPath];
+  if (!obfuscatedName) return null;
+  const subDir = path.dirname(originalPath);
+  return subDir === '.'
+    ? path.join(userDir, obfuscatedName)
+    : path.join(userDir, subDir, obfuscatedName);
+}
+
 module.exports = {
   obfuscateFilename,
   loadFileMapping,
   saveFileMapping,
-  createReverseMapping
+  createReverseMapping,
+  resolveObfuscatedPath
 };

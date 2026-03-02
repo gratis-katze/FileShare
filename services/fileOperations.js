@@ -24,8 +24,13 @@ function getFilesRecursively(dir, basePath = '', username = null) {
     const itemPath = path.join(dir, item);
     const stats = fs.statSync(itemPath);
     
-    const displayName = username && reverseMapping[item] ? reverseMapping[item] : item;
-    const relativePath = basePath ? path.join(basePath, displayName) : displayName;
+    // For private files the reverse mapping value is the full original path
+    // (e.g. "folder/photo.jpg"). Strip to just the basename for display so we
+    // don't end up with double-folder names like "folder/folder/photo.jpg".
+    const fullOriginalPath = username ? reverseMapping[item] : null;
+    const displayName = fullOriginalPath ? path.basename(fullOriginalPath) : item;
+    // Keep the full original path as relativePath so route lookups work correctly.
+    const relativePath = fullOriginalPath || (basePath ? path.join(basePath, displayName) : displayName);
     
     if (stats.isDirectory()) {
       const children = getFilesRecursively(itemPath, relativePath, username);

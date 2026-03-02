@@ -5,7 +5,7 @@ const { requireAuth } = require('../middleware/auth');
 const { publicDir } = require('../utils/constants');
 const { getUserUploadDir } = require('../services/fileOperations');
 const { decryptFile } = require('../services/encryption');
-const { loadFileMapping } = require('../services/fileMapping');
+const { loadFileMapping, resolveObfuscatedPath } = require('../services/fileMapping');
 
 const router = express.Router();
 
@@ -46,20 +46,30 @@ router.get('/stream/public/*', (req, res) => {
   }
 });
 
+// Video MIME types
+const videoMimeTypes = {
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.ogg': 'video/ogg',
+  '.avi': 'video/x-msvideo',
+  '.mov': 'video/quicktime',
+  '.wmv': 'video/x-ms-wmv',
+  '.flv': 'video/x-flv',
+  '.mkv': 'video/x-matroska',
+};
+
 // Video streaming endpoint for private files
 router.get('/stream/private/*', requireAuth, (req, res) => {
   const requestedPath = req.params[0];
   const userDir = getUserUploadDir(req.session.user.name);
-  
+
   const fileMapping = loadFileMapping(req.session.user.name);
-  const obfuscatedName = fileMapping[requestedPath];
-  
-  if (!obfuscatedName) {
+  const actualFilePath = resolveObfuscatedPath(userDir, fileMapping, requestedPath);
+
+  if (!actualFilePath) {
     return res.status(404).json({ error: 'File not found' });
   }
-  
-  const actualFilePath = path.join(userDir, obfuscatedName);
-  
+
   if (!fs.existsSync(actualFilePath)) {
     return res.status(404).json({ error: 'File not found' });
   }
@@ -67,7 +77,9 @@ router.get('/stream/private/*', requireAuth, (req, res) => {
   try {
     const encryptedBuffer = fs.readFileSync(actualFilePath);
     const decryptedBuffer = decryptFile(encryptedBuffer);
-    
+
+    const ext = path.extname(requestedPath).toLowerCase();
+    const contentType = videoMimeTypes[ext] || 'video/mp4';
     const fileSize = decryptedBuffer.length;
     const range = req.headers.range;
 
@@ -76,21 +88,20 @@ router.get('/stream/private/*', requireAuth, (req, res) => {
       const start = parseInt(parts[0], 10);
       const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
       const chunksize = (end - start) + 1;
-      
-      const head = {
+
+      res.writeHead(206, {
         'Content-Range': `bytes ${start}-${end}/${fileSize}`,
         'Accept-Ranges': 'bytes',
         'Content-Length': chunksize,
-        'Content-Type': 'video/mp4',
-      };
-      res.writeHead(206, head);
+        'Content-Type': contentType,
+      });
       res.end(decryptedBuffer.slice(start, end + 1));
     } else {
-      const head = {
+      res.writeHead(200, {
         'Content-Length': fileSize,
-        'Content-Type': 'video/mp4',
-      };
-      res.writeHead(200, head);
+        'Content-Type': contentType,
+        'Accept-Ranges': 'bytes',
+      });
       res.end(decryptedBuffer);
     }
   } catch (error) {
@@ -140,16 +151,14 @@ router.get('/image/public/*', (req, res) => {
 router.get('/image/private/*', requireAuth, (req, res) => {
   const requestedPath = req.params[0];
   const userDir = getUserUploadDir(req.session.user.name);
-  
+
   const fileMapping = loadFileMapping(req.session.user.name);
-  const obfuscatedName = fileMapping[requestedPath];
-  
-  if (!obfuscatedName) {
+  const actualFilePath = resolveObfuscatedPath(userDir, fileMapping, requestedPath);
+
+  if (!actualFilePath) {
     return res.status(404).json({ error: 'File not found' });
   }
-  
-  const actualFilePath = path.join(userDir, obfuscatedName);
-  
+
   if (!fs.existsSync(actualFilePath)) {
     return res.status(404).json({ error: 'File not found' });
   }
@@ -157,11 +166,9 @@ router.get('/image/private/*', requireAuth, (req, res) => {
   try {
     const encryptedBuffer = fs.readFileSync(actualFilePath);
     const decryptedBuffer = decryptFile(encryptedBuffer);
-    
+
     const ext = path.extname(requestedPath).toLowerCase();
-    let contentType = 'image/jpeg';
-    
-    const mimeTypes = {
+    const imageMimeTypes = {
       '.png': 'image/png',
       '.jpg': 'image/jpeg',
       '.jpeg': 'image/jpeg',
@@ -172,15 +179,14 @@ router.get('/image/private/*', requireAuth, (req, res) => {
       '.ico': 'image/x-icon',
       '.tiff': 'image/tiff'
     };
-    
-    contentType = mimeTypes[ext] || contentType;
-    
+    const contentType = imageMimeTypes[ext] || 'image/jpeg';
+
     res.set({
       'Content-Type': contentType,
       'Content-Length': decryptedBuffer.length,
-      'Cache-Control': 'private, max-age=3600'
+      'Cache-Control': 'private, no-store',
     });
-    
+
     res.end(decryptedBuffer);
   } catch (error) {
     res.status(500).json({ error: 'Unable to decrypt and serve image' });
