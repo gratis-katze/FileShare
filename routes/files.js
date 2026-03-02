@@ -428,6 +428,151 @@ router.delete('/delete/*', (req, res) => {
   }
 });
 
+// Create folder routes
+router.post('/mkdir/public', (req, res) => {
+  const { folderPath } = req.body;
+  if (!folderPath || folderPath.includes('..')) {
+    return res.status(400).json({ error: 'Invalid folder name' });
+  }
+  const fullPath = path.join(publicDir, folderPath);
+  if (fs.existsSync(fullPath)) {
+    return res.status(409).json({ error: 'Folder already exists' });
+  }
+  try {
+    fs.mkdirSync(fullPath, { recursive: true });
+    res.json({ message: 'Folder created' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create folder' });
+  }
+});
+
+router.post('/mkdir/private', requireAuth, (req, res) => {
+  const { folderPath } = req.body;
+  if (!folderPath || folderPath.includes('..')) {
+    return res.status(400).json({ error: 'Invalid folder name' });
+  }
+  const userDir = getUserUploadDir(req.session.user.name);
+  const fullPath = path.join(userDir, folderPath);
+  if (fs.existsSync(fullPath)) {
+    return res.status(409).json({ error: 'Folder already exists' });
+  }
+  try {
+    fs.mkdirSync(fullPath, { recursive: true });
+    res.json({ message: 'Folder created' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create folder' });
+  }
+});
+
+// Move routes
+router.patch('/move/public', (req, res) => {
+  const { sourcePath, destFolder } = req.body;
+  if (!sourcePath) return res.status(400).json({ error: 'sourcePath required' });
+
+  const baseName = path.basename(sourcePath);
+  const newRelPath = destFolder ? `${destFolder}/${baseName}` : baseName;
+
+  const sourceFullPath = path.join(publicDir, sourcePath);
+  const destFullPath   = path.join(publicDir, newRelPath);
+
+  if (!fs.existsSync(sourceFullPath)) return res.status(404).json({ error: 'Source not found' });
+  if (fs.existsSync(destFullPath))    return res.status(409).json({ error: 'Destination already exists' });
+
+  if (fs.statSync(sourceFullPath).isDirectory() &&
+      (newRelPath === sourcePath || newRelPath.startsWith(sourcePath + '/'))) {
+    return res.status(400).json({ error: 'Cannot move folder into itself' });
+  }
+
+  try {
+    fs.mkdirSync(path.dirname(destFullPath), { recursive: true });
+    fs.renameSync(sourceFullPath, destFullPath);
+    res.json({ message: 'Moved successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to move' });
+  }
+});
+
+router.patch('/move/private', requireAuth, (req, res) => {
+  const { sourcePath, destFolder } = req.body;
+  if (!sourcePath) return res.status(400).json({ error: 'sourcePath required' });
+
+  const username = req.session.user.name;
+  const userDir  = getUserUploadDir(username);
+  const fileMapping = loadFileMapping(username);
+
+  const baseName   = path.basename(sourcePath);
+  const newRelPath = (destFolder ? `${destFolder}/${baseName}` : baseName);
+
+  // Gather mapping keys that belong to this source
+  const matchingKeys = Object.keys(fileMapping).filter(key =>
+    key === sourcePath || key.startsWith(sourcePath + '/')
+  );
+
+  // Handle empty folder (no mapping entries but exists on disk)
+  if (matchingKeys.length === 0) {
+    const srcDirPath  = path.join(userDir, sourcePath);
+    const destDirPath = path.join(userDir, newRelPath);
+    if (!fs.existsSync(srcDirPath) || !fs.statSync(srcDirPath).isDirectory()) {
+      return res.status(404).json({ error: 'Source not found' });
+    }
+    if (fs.existsSync(destDirPath)) return res.status(409).json({ error: 'Destination already exists' });
+    try {
+      fs.mkdirSync(path.dirname(destDirPath), { recursive: true });
+      fs.renameSync(srcDirPath, destDirPath);
+      return res.json({ message: 'Moved successfully' });
+    } catch (err) {
+      return res.status(500).json({ error: 'Failed to move' });
+    }
+  }
+
+  // Conflict check
+  const conflictKeys = Object.keys(fileMapping).filter(key =>
+    key === newRelPath || key.startsWith(newRelPath + '/')
+  );
+  if (conflictKeys.length > 0) return res.status(409).json({ error: 'Destination already exists' });
+
+  const isFolder = matchingKeys.some(key => key.startsWith(sourcePath + '/'));
+
+  if (isFolder) {
+    if (newRelPath === sourcePath || newRelPath.startsWith(sourcePath + '/')) {
+      return res.status(400).json({ error: 'Cannot move folder into itself' });
+    }
+    // Rewrite mapping keys
+    matchingKeys.filter(key => key.startsWith(sourcePath + '/')).forEach(key => {
+      const newKey = newRelPath + '/' + key.slice(sourcePath.length + 1);
+      fileMapping[newKey] = fileMapping[key];
+      delete fileMapping[key];
+    });
+    // Move physical directory
+    const srcDirPath  = path.join(userDir, sourcePath);
+    const destDirPath = path.join(userDir, newRelPath);
+    if (fs.existsSync(srcDirPath)) {
+      fs.mkdirSync(path.dirname(destDirPath), { recursive: true });
+      fs.renameSync(srcDirPath, destDirPath);
+    }
+  } else {
+    // Single file: update mapping key and move physical file
+    const hash = fileMapping[sourcePath];
+    const srcPhysical  = resolveObfuscatedPath(userDir, fileMapping, sourcePath);
+    delete fileMapping[sourcePath];
+    fileMapping[newRelPath] = hash;
+
+    // New physical location based on new relative path
+    const newSubDir    = path.dirname(newRelPath);
+    const destPhysical = newSubDir === '.'
+      ? path.join(userDir, hash)
+      : path.join(userDir, newSubDir, hash);
+
+    if (srcPhysical && srcPhysical !== destPhysical && fs.existsSync(srcPhysical)) {
+      fs.mkdirSync(path.dirname(destPhysical), { recursive: true });
+      fs.renameSync(srcPhysical, destPhysical);
+    }
+  }
+
+  saveFileMapping(username, fileMapping);
+  res.json({ message: 'Moved successfully' });
+});
+
 // Rename routes
 router.patch('/rename/public/*', (req, res) => {
   const oldPath = req.params[0];
