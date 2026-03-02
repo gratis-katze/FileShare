@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FelixShare – Private Space</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared.css">
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+    <div class="space-particles" id="particles"></div>
+    <div class="shooting-stars" id="shootingStars"></div>
+
+    <div class="container">
+        <nav class="site-nav">
+            <a href="/">← Home</a>
+            <span class="site-nav-title">🚀 FelixShare</span>
+            <a href="/public">🌍 Public Space</a>
+        </nav>
+
+        <div class="section">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">🔒 Private File Space</h2>
+                    <p class="section-subtitle">Your files are encrypted and private</p>
+                </div>
+            </div>
+
+            <!-- Login panel (shown when logged out) -->
+            <div class="login-panel" id="loginPanel">
+                <h3>🔐 Login Required</h3>
+                <p>Your private, encrypted file space awaits</p>
+                <button class="btn-primary" onclick="openModal('loginModal')">Login</button>
+                <button class="btn-primary" onclick="openModal('signupModal')">Sign Up</button>
+            </div>
+
+            <!-- User panel (shown when logged in) -->
+            <div class="user-panel" id="userPanel" style="display:none;">
+                <span>🔒 Welcome back, <strong id="username"></strong>!</span>
+                <button class="btn-primary" onclick="handleLogout()">Logout</button>
+            </div>
+
+            <!-- Private content (shown when logged in) -->
+            <div class="private-content" id="privateContent">
+                <div class="upload-section" id="uploadSection">
+                    <h3>📤 Upload to Private Space</h3>
+                    <p>Files uploaded here are encrypted and only visible to you</p>
+                    <input type="file" id="privateFileInput" multiple>
+                    <input type="file" id="privateFolderInput" webkitdirectory directory multiple>
+                    <button class="upload-btn" onclick="document.getElementById('privateFileInput').click()">Choose Files</button>
+                    <button class="upload-btn" onclick="document.getElementById('privateFolderInput').click()">Choose Folder</button>
+                    <button class="upload-btn" id="privateUploadBtn" onclick="uploadPrivateFiles()">Upload Selected</button>
+                </div>
+
+                <div class="files-section">
+                    <div class="section-files-header">
+                        <h3>📂 Your Private Files</h3>
+                        <button class="btn-new-folder" onclick="openCreateFolderModal('private')">📁 New Folder</button>
+                    </div>
+                    <div class="grid-controls">
+                        <div class="sort-controls">
+                            <label>Sort:</label>
+                            <select id="privateSortBy" onchange="applySort('private')">
+                                <option value="date">Datum</option>
+                                <option value="name">Name</option>
+                                <option value="size">Größe</option>
+                            </select>
+                            <button class="sort-dir-btn" id="privateSortDir" onclick="toggleSortDir('private')">↓</button>
+                        </div>
+                        <div class="view-controls">
+                            <label>Kachelgröße:</label>
+                            <input type="range" min="180" max="520" value="300" step="20"
+                                   id="privateTileSizeSlider" oninput="updateTileSize('private', this.value)">
+                            <span id="privateTileSizeLabel">300px</span>
+                        </div>
+                    </div>
+                    <div class="file-grid" id="privateFileGrid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div class="modal" id="loginModal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('loginModal')">&times;</button>
+            <h3>Login</h3>
+            <form onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="loginName">Username:</label>
+                    <input type="text" id="loginName" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password:</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                <button type="submit" class="auth-btn">Login</button>
+            </form>
+            <div class="auth-toggle">
+                Don't have an account? <a href="#" onclick="switchModal('loginModal','signupModal')">Sign up</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Signup Modal -->
+    <div class="modal" id="signupModal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('signupModal')">&times;</button>
+            <h3>Create Account</h3>
+            <form onsubmit="handleSignup(event)">
+                <div class="form-group">
+                    <label for="signupName">Username:</label>
+                    <input type="text" id="signupName" required>
+                </div>
+                <div class="form-group">
+                    <label for="signupPassword">Password:</label>
+                    <input type="password" id="signupPassword" required>
+                </div>
+                <button type="submit" class="auth-btn">Create Account</button>
+            </form>
+            <div class="auth-toggle">
+                Already have an account? <a href="#" onclick="switchModal('signupModal','loginModal')">Login</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Folder Modal -->
+    <div class="modal" id="createFolderModal" onclick="closeCreateFolderModal()">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <h3>Neuer Ordner</h3>
+            <input type="text" id="createFolderInput" placeholder="Ordnername">
+            <div class="modal-actions">
+                <button onclick="submitCreateFolder()">Erstellen</button>
+                <button onclick="closeCreateFolderModal()">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Move Modal -->
+    <div class="modal" id="moveModal" onclick="closeMoveModal()">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <h3>Verschieben</h3>
+            <p style="margin-bottom:12px;font-size:13px;opacity:0.7;">Verschiebe: <strong id="moveItemName"></strong></p>
+            <label style="display:block;margin-bottom:6px;font-size:14px;">Zielordner:</label>
+            <select id="moveDestSelect"></select>
+            <div class="modal-actions" style="margin-top:15px;">
+                <button onclick="submitMove()">Verschieben</button>
+                <button onclick="closeMoveModal()">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename Modal -->
+    <div class="modal" id="renameModal" onclick="closeRenameModal()">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <h3>Umbenennen</h3>
+            <input type="text" id="renameInput" placeholder="Neuer Name">
+            <div class="modal-actions">
+                <button onclick="submitRename()">Umbenennen</button>
+                <button onclick="closeRenameModal()">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text" id="loadingText">Uploading files...</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="loading-progress" id="loadingProgress">0 of 0 files uploaded</div>
+            <div class="upload-stats" id="uploadStats">Preparing upload...</div>
+        </div>
+    </div>
+
+    <!-- Lightbox -->
+    <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+        <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
+        <img class="lightbox-content" id="lightbox-image" onclick="event.stopPropagation()">
+    </div>
+
+    <script src="/shared.js"></script>
+    <script>
+        let currentUser = null;
+        let selectedPrivateFiles = [];
+
+        // Override the shared reload hook
+        function reloadFiles(space) { loadPrivateFiles(); }
+
+        function updateAuthUI() {
+            const loginPanel    = document.getElementById('loginPanel');
+            const userPanel     = document.getElementById('userPanel');
+            const privateContent = document.getElementById('privateContent');
+            const usernameEl    = document.getElementById('username');
+
+            if (currentUser) {
+                loginPanel.style.display = 'none';
+                userPanel.style.display  = 'flex';
+                usernameEl.textContent   = currentUser.name;
+                privateContent.classList.add('visible');
+            } else {
+                loginPanel.style.display = 'block';
+                userPanel.style.display  = 'none';
+                privateContent.classList.remove('visible');
+                fileCache.private = [];
+                document.getElementById('privateFileGrid').innerHTML = '';
+            }
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const name     = document.getElementById('loginName').value;
+            const password = document.getElementById('loginPassword').value;
+            try {
+                const res  = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ name, password })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    currentUser = data.user;
+                    closeModal('loginModal');
+                    updateAuthUI();
+                    loadPrivateFiles();
+                    showMessage('Login successful!', 'success');
+                } else {
+                    showMessage(data.error || 'Login failed', 'error');
+                }
+            } catch (error) {
+                showMessage('Login error: ' + error.message, 'error');
+            }
+        }
+
+        async function handleSignup(event) {
+            event.preventDefault();
+            const name     = document.getElementById('signupName').value;
+            const password = document.getElementById('signupPassword').value;
+            try {
+                const res  = await fetch('/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ name, password })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    currentUser = data.user;
+                    closeModal('signupModal');
+                    updateAuthUI();
+                    loadPrivateFiles();
+                    showMessage('Account created successfully!', 'success');
+                } else {
+                    showMessage(data.error || 'Signup failed', 'error');
+                }
+            } catch (error) {
+                showMessage('Signup error: ' + error.message, 'error');
+            }
+        }
+
+        async function handleLogout() {
+            try {
+                const res = await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+                if (res.ok) {
+                    currentUser = null;
+                    updateAuthUI();
+                    showMessage('Logged out successfully', 'success');
+                }
+            } catch (error) {
+                showMessage('Logout error: ' + error.message, 'error');
+            }
+        }
+
+        async function loadPrivateFiles() {
+            if (!currentUser) return;
+            try {
+                const res = await fetch('/files/private', { credentials: 'include' });
+                fileCache.private = await res.json();
+                applySort('private');
+            } catch (error) {
+                showMessage('Error loading private files: ' + error.message, 'error');
+            }
+        }
+
+        async function uploadPrivateFiles() {
+            if (!currentUser) { showMessage('Please login to upload private files', 'error'); return; }
+            await uploadFiles(selectedPrivateFiles, 'private', 'privateUploadBtn', () => {
+                selectedPrivateFiles = [];
+                document.getElementById('privateFileInput').value  = '';
+                document.getElementById('privateFolderInput').value = '';
+                loadPrivateFiles();
+            });
+        }
+
+        async function checkAuthStatus() {
+            try {
+                const res  = await fetch('/auth/status', { credentials: 'include' });
+                const data = await res.json();
+                if (data.authenticated) {
+                    currentUser = data.user;
+                    updateAuthUI();
+                    loadPrivateFiles();
+                } else {
+                    updateAuthUI();
+                }
+            } catch (error) {
+                updateAuthUI();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            createStars();
+            createParticles();
+            createShootingStars();
+            checkAuthStatus();
+
+            document.getElementById('privateFileInput').addEventListener('change', function (e) {
+                selectedPrivateFiles = Array.from(e.target.files);
+                showMessage(`${selectedPrivateFiles.length} file(s) selected`, 'success');
+            });
+
+            document.getElementById('privateFolderInput').addEventListener('change', function (e) {
+                selectedPrivateFiles = Array.from(e.target.files);
+                const folderName = selectedPrivateFiles[0]?.webkitRelativePath.split('/')[0] || '';
+                showMessage(`Folder "${folderName}" with ${selectedPrivateFiles.length} file(s) selected`, 'success');
+            });
+
+            // Drag-and-drop
+            const uploadSection = document.getElementById('uploadSection');
+
+            uploadSection.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadSection.style.borderColor = 'rgba(120,219,255,0.8)';
+                uploadSection.style.background  = 'rgba(120,219,255,0.1)';
+            });
+
+            uploadSection.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                uploadSection.style.borderColor = '';
+                uploadSection.style.background  = '';
+            });
+
+            uploadSection.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                uploadSection.style.borderColor = '';
+                uploadSection.style.background  = '';
+                if (!currentUser) { showMessage('Please login to upload private files', 'error'); return; }
+                selectedPrivateFiles = [];
+                for (const item of e.dataTransfer.items) {
+                    if (item.kind === 'file') {
+                        const entry = item.webkitGetAsEntry();
+                        if (entry) await processEntry(entry, '', selectedPrivateFiles);
+                    }
+                }
+                showMessage(`${selectedPrivateFiles.length} file(s) selected`, 'success');
+            });
+        });
+    </script>
+</body>
+</html>

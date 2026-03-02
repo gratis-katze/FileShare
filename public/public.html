@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FelixShare – Public Space</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared.css">
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+    <div class="space-particles" id="particles"></div>
+    <div class="shooting-stars" id="shootingStars"></div>
+
+    <div class="container">
+        <nav class="site-nav">
+            <a href="/">← Home</a>
+            <span class="site-nav-title">🚀 FelixShare</span>
+            <a href="/private">🔒 Private Space</a>
+        </nav>
+
+        <div class="section">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">🌍 Public File Space</h2>
+                    <p class="section-subtitle">Share files with everyone — no account needed</p>
+                </div>
+            </div>
+
+            <div class="upload-section" id="uploadSection">
+                <h3>📤 Upload to Public Space</h3>
+                <p>Files uploaded here are accessible to everyone</p>
+                <input type="file" id="publicFileInput" multiple>
+                <input type="file" id="publicFolderInput" webkitdirectory directory multiple>
+                <button class="upload-btn" onclick="document.getElementById('publicFileInput').click()">Choose Files</button>
+                <button class="upload-btn" onclick="document.getElementById('publicFolderInput').click()">Choose Folder</button>
+                <button class="upload-btn" id="publicUploadBtn" onclick="uploadPublicFiles()">Upload Selected</button>
+            </div>
+
+            <div class="files-section">
+                <div class="section-files-header">
+                    <h3>📂 Public Files</h3>
+                    <button class="btn-new-folder" onclick="openCreateFolderModal('public')">📁 New Folder</button>
+                </div>
+                <div class="grid-controls">
+                    <div class="sort-controls">
+                        <label>Sort:</label>
+                        <select id="publicSortBy" onchange="applySort('public')">
+                            <option value="date">Datum</option>
+                            <option value="name">Name</option>
+                            <option value="size">Größe</option>
+                        </select>
+                        <button class="sort-dir-btn" id="publicSortDir" onclick="toggleSortDir('public')">↓</button>
+                    </div>
+                    <div class="view-controls">
+                        <label>Kachelgröße:</label>
+                        <input type="range" min="180" max="520" value="300" step="20"
+                               id="publicTileSizeSlider" oninput="updateTileSize('public', this.value)">
+                        <span id="publicTileSizeLabel">300px</span>
+                    </div>
+                </div>
+                <div class="file-grid" id="publicFileGrid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Folder Modal -->
+    <div class="modal" id="createFolderModal" onclick="closeCreateFolderModal()">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <h3>Neuer Ordner</h3>
+            <input type="text" id="createFolderInput" placeholder="Ordnername">
+            <div class="modal-actions">
+                <button onclick="submitCreateFolder()">Erstellen</button>
+                <button onclick="closeCreateFolderModal()">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Move Modal -->
+    <div class="modal" id="moveModal" onclick="closeMoveModal()">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <h3>Verschieben</h3>
+            <p style="margin-bottom:12px;font-size:13px;opacity:0.7;">Verschiebe: <strong id="moveItemName"></strong></p>
+            <label style="display:block;margin-bottom:6px;font-size:14px;">Zielordner:</label>
+            <select id="moveDestSelect"></select>
+            <div class="modal-actions" style="margin-top:15px;">
+                <button onclick="submitMove()">Verschieben</button>
+                <button onclick="closeMoveModal()">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename Modal -->
+    <div class="modal" id="renameModal" onclick="closeRenameModal()">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <h3>Umbenennen</h3>
+            <input type="text" id="renameInput" placeholder="Neuer Name">
+            <div class="modal-actions">
+                <button onclick="submitRename()">Umbenennen</button>
+                <button onclick="closeRenameModal()">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text" id="loadingText">Uploading files...</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="loading-progress" id="loadingProgress">0 of 0 files uploaded</div>
+            <div class="upload-stats" id="uploadStats">Preparing upload...</div>
+        </div>
+    </div>
+
+    <!-- Lightbox -->
+    <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+        <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
+        <img class="lightbox-content" id="lightbox-image" onclick="event.stopPropagation()">
+    </div>
+
+    <script src="/shared.js"></script>
+    <script>
+        let selectedPublicFiles = [];
+
+        // Override the shared reload hook
+        function reloadFiles(space) { loadPublicFiles(); }
+
+        async function loadPublicFiles() {
+            try {
+                const response = await fetch('/files/public');
+                fileCache.public = await response.json();
+                applySort('public');
+            } catch (error) {
+                showMessage('Error loading public files: ' + error.message, 'error');
+            }
+        }
+
+        async function uploadPublicFiles() {
+            await uploadFiles(selectedPublicFiles, 'public', 'publicUploadBtn', () => {
+                selectedPublicFiles = [];
+                document.getElementById('publicFileInput').value = '';
+                document.getElementById('publicFolderInput').value = '';
+                loadPublicFiles();
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            createStars();
+            createParticles();
+            createShootingStars();
+            loadPublicFiles();
+
+            document.getElementById('publicFileInput').addEventListener('change', function (e) {
+                selectedPublicFiles = Array.from(e.target.files);
+                showMessage(`${selectedPublicFiles.length} file(s) selected`, 'success');
+            });
+
+            document.getElementById('publicFolderInput').addEventListener('change', function (e) {
+                selectedPublicFiles = Array.from(e.target.files);
+                const folderName = selectedPublicFiles[0]?.webkitRelativePath.split('/')[0] || '';
+                showMessage(`Folder "${folderName}" with ${selectedPublicFiles.length} file(s) selected`, 'success');
+            });
+
+            // Drag-and-drop
+            const uploadSection = document.getElementById('uploadSection');
+
+            uploadSection.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadSection.style.borderColor = 'rgba(120,219,255,0.8)';
+                uploadSection.style.background  = 'rgba(120,219,255,0.1)';
+            });
+
+            uploadSection.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                uploadSection.style.borderColor = '';
+                uploadSection.style.background  = '';
+            });
+
+            uploadSection.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                uploadSection.style.borderColor = '';
+                uploadSection.style.background  = '';
+                selectedPublicFiles = [];
+                for (const item of e.dataTransfer.items) {
+                    if (item.kind === 'file') {
+                        const entry = item.webkitGetAsEntry();
+                        if (entry) await processEntry(entry, '', selectedPublicFiles);
+                    }
+                }
+                showMessage(`${selectedPublicFiles.length} file(s) selected`, 'success');
+            });
+        });
+    </script>
+</body>
+</html>
