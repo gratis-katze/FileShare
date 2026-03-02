@@ -5,11 +5,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node start.js local",
-    "serveo": "node start.js online",
-    "ngrok": "node start.js ngrok"
+    "tunnel": "node start.js tunnel"
   },
   "dependencies": {
     "archiver": "^7.0.1",
+    "localtunnel": "^2.0.2",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "express": "^4.18.2",

@@ -36,14 +36,11 @@ npm start
 
 ### Internet Access
 ```bash
-npm run ngrok
+npm run tunnel
 ```
-```bash
-npm run serveo
-```
-- Automatically starts server and creates secure tunnel
-- Provides public URL for internet access
-- Perfect for accessing files from anywhere
+- Automatically starts server and creates a public HTTPS tunnel (no signup required)
+- Provides a public URL for internet access
+- First-time visitors see a one-time localtunnel confirmation page
 - Press Ctrl+C to stop both server and tunnel
 
 ## Getting Your IP Address
